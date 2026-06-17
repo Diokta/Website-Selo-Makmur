@@ -1,0 +1,46 @@
+.product-carousel .slick-dots {
+  bottom: -40px;
+}
+
+.product-carousel .slick-dots li button:before {
+  font-size: 10px;
+  color: #7ca64c;
+}
+
+.product-carousel .slick-dots li.slick-active button:before {
+  color: #2d5016;
+}
+
+.product-carousel .slick-prev,
+.product-carousel .slick-next {
+  z-index: 1;
+}
+
+.product-carousel .slick-prev {
+  left: -10px;
+}
+
+.product-carousel .slick-next {
+  right: -10px;
+}
+
+.product-carousel .slick-prev:before,
+.product-carousel .slick-next:before {
+  font-size: 30px;
+  color: #2d5016;
+}
+
+@media (max-width: 640px) {
+  .product-carousel .slick-prev {
+    left: -5px;
+  }
+
+  .product-carousel .slick-next {
+    right: -5px;
+  }
+
+  .product-carousel .slick-prev:before,
+  .product-carousel .slick-next:before {
+    font-size: 24px;
+  }
+}
