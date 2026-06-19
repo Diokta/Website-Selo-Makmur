@@ -4,7 +4,7 @@ Dokumen ini memberikan konteks lengkap bagi agen AI yang bekerja di repositori i
 
 ## Gambaran Proyek
 
-Website resmi **Gabungan Kelompok Tani (Gapoktan) Selo Makmur** — platform digital pertanian yang mencakup portal publik, e-commerce produk tani, dan sistem dashboard admin dua tingkat.
+Website resmi **Gabungan Kelompok Tani (Gapoktan) Selo Makmur** — platform digital pertanian yang mencakup portal publik, e-commerce produk tani, dan sistem dashboard admin satu tingkat (Super Admin Gapoktan).
 
 **Stack:** React 18 + TypeScript + Vite + Tailwind CSS v4 + React Router v7 + Recharts
 
@@ -35,27 +35,17 @@ Website resmi **Gabungan Kelompok Tani (Gapoktan) Selo Makmur** — platform dig
 | `/reports` | Reports | Laporan penjualan publik |
 | `/contact` | Contact | Form kontak & info sekretariat |
 
-### Admin Poktan (`/admin-poktan/*`)
-Untuk ketua/pengurus kelompok tani tingkat dusun/desa.
-
-| Route | Konten |
-|---|---|
-| `/admin-poktan` | Dashboard ringkasan poktan |
-| `/admin-poktan/products` | Manajemen produk & stok |
-| `/admin-poktan/sales` | Laporan penjualan poktan |
-| `/admin-poktan/gallery` | Galeri & unggah berita |
-
 ### Super Admin Gapoktan (`/admin-gapoktan/*`)
-Untuk pengurus pusat Gapoktan — akses penuh ke semua data.
+Satu-satunya level admin — untuk pengurus pusat Gapoktan, akses penuh ke semua data.
 
 | Route | Konten |
 |---|---|
 | `/admin-gapoktan` | Pusat kontrol utama + grafik |
 | `/admin-gapoktan/validation` | Validasi & approval produk baru |
 | `/admin-gapoktan/orders` | Manajemen semua pesanan |
-| `/admin-gapoktan/users` | Manajemen anggota poktan |
+| `/admin-gapoktan/users` | Daftar kelompok tani (poktan) anggota Gapoktan |
 | `/admin-gapoktan/finance` | Laporan keuangan & bagi hasil |
-| `/admin-gapoktan/content` | Kelola konten website |
+| `/admin-gapoktan/content` | Kelola konten website (Identitas, Banner, Statistik, Visi & Misi, Struktur Organisasi, Berita) |
 
 ## Model Data Produk
 
