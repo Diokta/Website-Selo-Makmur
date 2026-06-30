@@ -4,57 +4,51 @@ import { ShoppingCart, TrendingUp, ArrowRight } from "lucide-react";
 import Slider from "react-slick";
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
+import { useState, useEffect } from "react";
+import { supabase } from "../../lib/supabase";
+import { LoadingSpinner } from "./ui/LoadingSpinner";
 
 export function ProductCarousel() {
-  const products = [
-    {
-      id: 1,
-      name: "Beras Organik Premium",
-      description: "Beras organik berkualitas tinggi dari sawah lokal",
-      price: "Rp 15.000/kg",
-      image: "https://images.unsplash.com/photo-1676281945404-4e1cb6eaf25e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwyfHxJbmRvbmVzaWFuJTIwZmFybWVycyUyMHdvcmtpbmclMjBpbiUyMHJpY2UlMjBmaWVsZHxlbnwxfHx8fDE3ODA0NjExNzh8MA&ixlib=rb-4.1.0&q=80&w=1080",
-      badge: "Terlaris",
-    },
-    {
-      id: 2,
-      name: "Sayuran Segar Harian",
-      description: "Paket sayuran segar dipetik pagi hari",
-      price: "Rp 35.000/paket",
-      image: "https://images.unsplash.com/photo-1579113800032-c38bd7635818?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxmcmVzaCUyMHZlZ2V0YWJsZXMlMjBoYXJ2ZXN0JTIwb3JnYW5pYyUyMHByb2R1Y2V8ZW58MXx8fHwxNzgwNDYxMTgyfDA&ixlib=rb-4.1.0&q=80&w=1080",
-      badge: "Baru",
-    },
-    {
-      id: 3,
-      name: "Jagung Manis Organik",
-      description: "Jagung manis tanpa pestisida",
-      price: "Rp 12.000/kg",
-      image: "https://images.unsplash.com/photo-1597362925123-77861d3fbac7?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwyfHxmcmVzaCUyMHZlZ2V0YWJsZXMlMjBoYXJ2ZXN0JTIwb3JnYW5pYyUyMHByb2R1Y2V8ZW58MXx8fHwxNzgwNDYxMTgyfDA&ixlib=rb-4.1.0&q=80&w=1080",
-      badge: "Populer",
-    },
-    {
-      id: 4,
-      name: "Cabai Merah Segar",
-      description: "Cabai merah pilihan dari kebun petani lokal",
-      price: "Rp 45.000/kg",
-      image: "https://images.unsplash.com/photo-1590779033100-9f60a05a013d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwzfHxmcmVzaCUyMHZlZ2V0YWJsZXMlMjBoYXJ2ZXN0JTIwb3JnYW5pYyUyMHByb2R1Y2V8ZW58MXx8fHwxNzgwNDYxMTgyfDA&ixlib=rb-4.1.0&q=80&w=1080",
-      badge: "Terlaris",
-    },
-  ];
+  const [products, setProducts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchFeaturedProducts = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("products")
+          .select("*, kelompok_tani(id, nama)")
+          .eq("status", "Aktif")
+          .order("created_at", { ascending: false });
+
+        if (!error && data) {
+          setProducts(data);
+        }
+      } catch (err) {
+        console.error("Error fetching featured products:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchFeaturedProducts();
+  }, []);
+
 
   const settings = {
     dots: true,
-    infinite: true,
+    infinite: products.length > 3,
     speed: 500,
-    slidesToShow: 3,
+    slidesToShow: Math.min(3, products.length),
     slidesToScroll: 1,
-    autoplay: true,
+    autoplay: products.length > 1,
     autoplaySpeed: 3000,
     responsive: [
       {
         breakpoint: 1024,
         settings: {
-          slidesToShow: 2,
+          slidesToShow: Math.min(2, products.length),
           slidesToScroll: 1,
+          infinite: products.length > 2,
         },
       },
       {
@@ -62,10 +56,21 @@ export function ProductCarousel() {
         settings: {
           slidesToShow: 1,
           slidesToScroll: 1,
+          infinite: products.length > 1,
         },
       },
     ],
   };
+
+  if (loading) {
+    return (
+      <section className="py-12 sm:py-16 lg:py-20 bg-secondary">
+        <div className="flex items-center justify-center min-h-[300px]">
+          <LoadingSpinner message="Memuat produk unggulan..." />
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="py-12 sm:py-16 lg:py-20 bg-secondary">
@@ -79,46 +84,66 @@ export function ProductCarousel() {
           </p>
         </div>
 
-        <div className="product-carousel mb-8">
-          <Slider {...settings}>
-            {products.map((product) => (
-              <div key={product.id} className="px-2 sm:px-3">
-                <div className="bg-white rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-shadow">
-                  <div className="relative h-48 sm:h-56">
-                    <ImageWithFallback
-                      src={product.image}
-                      alt={product.name}
-                      className="w-full h-full object-cover"
-                    />
-                    <div className="absolute top-3 right-3">
-                      <span className="bg-accent text-white px-3 py-1 rounded-full text-xs sm:text-sm flex items-center gap-1">
-                        <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4" />
-                        {product.badge}
-                      </span>
+        {products.length === 0 ? (
+          <div className="text-center py-12 px-6 bg-white/60 backdrop-blur-sm rounded-2xl border border-border/50 max-w-lg mx-auto shadow-md mb-8">
+            <TrendingUp className="w-12 h-12 text-muted-foreground/60 mx-auto mb-3" />
+            <p className="text-lg font-semibold text-primary">Belum Ada Produk Unggulan</p>
+            <p className="text-sm text-muted-foreground mt-1">Kami sedang mempersiapkan produk segar terbaik kami untuk Anda. Hubungi kami untuk informasi lebih lanjut.</p>
+          </div>
+        ) : (
+          <div className={`product-carousel mb-8 mx-auto ${
+            products.length === 1 ? "max-w-md" : 
+            products.length === 2 ? "max-w-4xl" : "max-w-7xl"
+          }`}>
+            <Slider {...settings}>
+              {products.map((product) => {
+                const formattedPrice = `Rp ${Number(product.price).toLocaleString("id-ID")}/${product.unit}`;
+                return (
+                  <div key={product.id} className="px-2 sm:px-3 pb-4">
+                    <div className="bg-white rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-shadow border border-border/30 max-w-md mx-auto w-full flex flex-col h-[420px] sm:h-[480px]">
+                      <Link to={`/product/${product.id}`} className="block relative h-48 sm:h-56 overflow-hidden flex-shrink-0">
+                        <ImageWithFallback
+                          src={product.image_url}
+                          alt={product.name}
+                          className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                        />
+                        {product.badge && (
+                          <div className="absolute top-3 right-3">
+                            <span className="bg-accent text-white px-3 py-1 rounded-full text-xs sm:text-sm flex items-center gap-1">
+                              <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4" />
+                              {product.badge}
+                            </span>
+                          </div>
+                        )}
+                      </Link>
+                      <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between">
+                        <div>
+                          <Link to={`/product/${product.id}`} className="block group">
+                            <h3 className="text-base sm:text-lg text-primary font-bold mb-2 group-hover:text-accent transition-colors line-clamp-1">
+                              {product.name}
+                            </h3>
+                          </Link>
+                          <p className="text-xs sm:text-sm text-muted-foreground mb-3 line-clamp-2">
+                            {product.description}
+                          </p>
+                        </div>
+                        <div className="flex items-center justify-between mt-auto">
+                          <span className="text-base sm:text-lg text-accent font-semibold">
+                            {formattedPrice}
+                          </span>
+                          <Link to={`/product/${product.id}`} className="bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2 text-sm font-semibold">
+                            <ShoppingCart className="w-4 h-4" />
+                            Detail
+                          </Link>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <div className="p-4 sm:p-5">
-                    <h3 className="text-lg sm:text-xl text-primary mb-2">
-                      {product.name}
-                    </h3>
-                    <p className="text-sm sm:text-base text-muted-foreground mb-3 sm:mb-4">
-                      {product.description}
-                    </p>
-                    <div className="flex items-center justify-between">
-                      <span className="text-lg sm:text-xl text-accent">
-                        {product.price}
-                      </span>
-                      <button className="bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2 text-sm sm:text-base">
-                        <ShoppingCart className="w-4 h-4" />
-                        Pesan
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </Slider>
-        </div>
+                );
+              })}
+            </Slider>
+          </div>
+        )}
 
         <div className="text-center">
           <Link

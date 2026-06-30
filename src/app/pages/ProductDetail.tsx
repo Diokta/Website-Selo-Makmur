@@ -1,36 +1,132 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
-import { ShoppingCart, Minus, Plus, Package, Truck, ShieldCheck, ArrowLeft } from "lucide-react";
+import { ShoppingCart, Minus, Plus, Package, Truck, ShieldCheck, ArrowLeft, CheckCircle, AlertTriangle, ShoppingBag } from "lucide-react";
+import { supabase } from "../../lib/supabase";
+import { LoadingSpinner } from "../components/ui/LoadingSpinner";
+import { useAuth } from "../../hooks/useAuth";
 
 export function ProductDetail() {
   const { id } = useParams();
+  const { user } = useAuth();
   const [quantity, setQuantity] = useState(1);
-  const [selectedVariant, setSelectedVariant] = useState("5kg");
+  const [selectedVariant, setSelectedVariant] = useState<string>("");
+  const [product, setProduct] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-  const product = {
-    id: 1,
-    name: "Beras Organik Premium",
-    category: "Beras",
-    poktan: "Poktan Harapan Jaya",
-    description:
-      "Beras organik premium yang ditanam tanpa pestisida kimia. Diproses dengan teknologi modern untuk menjaga kualitas dan kesegaran. Cocok untuk keluarga yang peduli kesehatan.",
-    cultivation: "Organik 100%",
-    variants: [
-      { size: "5kg", price: 75000, stock: 100 },
-      { size: "10kg", price: 145000, stock: 80 },
-      { size: "25kg", price: 350000, stock: 50 },
-    ],
-    image: "https://images.unsplash.com/photo-1676281945404-4e1cb6eaf25e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwyfHxJbmRvbmVzaWFuJTIwZmFybWVycyUyMHdvcmtpbmclMjBpbiUyMHJpY2UlMjBmaWVsZHxlbnwxfHx8fDE3ODA0NjExNzh8MA&ixlib=rb-4.1.0&q=80&w=1080",
-    features: [
-      "Bebas pestisida kimia",
-      "Sertifikasi organik",
-      "Hasil panen terbaru",
-      "Kualitas premium",
-    ],
+  // Cart States
+  const [addingToCart, setAddingToCart] = useState(false);
+  const [successMsg, setSuccessMsg] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
+  const [authAlertOpen, setAuthAlertOpen] = useState(false);
+
+  useEffect(() => {
+    if (!id) return;
+    const fetchProduct = async () => {
+      const { data } = await supabase
+        .from('products')
+        .select('*, kelompok_tani(id, nama), product_variants(*), product_features(*)')
+        .eq('id', id)
+        .single();
+      setProduct(data);
+      if (data?.product_variants?.length > 0) {
+        setSelectedVariant(data.product_variants[0].size);
+      }
+      setLoading(false);
+    };
+    fetchProduct();
+  }, [id]);
+
+  const handleAddToCart = async () => {
+    setSuccessMsg("");
+    setErrorMsg("");
+    if (!user) {
+      setAuthAlertOpen(true);
+      return;
+    }
+
+    setAddingToCart(true);
+    const productId = product.id;
+    const variantId = currentVariant ? currentVariant.id : null;
+
+    try {
+      let query = supabase
+        .from("cart_items")
+        .select("id, quantity")
+        .eq("user_id", user.id)
+        .eq("product_id", productId);
+
+      if (variantId) {
+        query = query.eq("variant_id", variantId);
+      } else {
+        query = query.is("variant_id", null);
+      }
+
+      const { data: existing, error: fetchErr } = await query;
+      if (fetchErr) throw fetchErr;
+
+      if (existing && existing.length > 0) {
+        const newQty = existing[0].quantity + quantity;
+        const maxStock = currentVariant ? currentVariant.stock : product.stock;
+
+        if (newQty > maxStock) {
+          throw new Error(`Tidak dapat menambah. Batas stok maksimum adalah ${maxStock}.`);
+        }
+
+        const { error: updateErr } = await supabase
+          .from("cart_items")
+          .update({ quantity: newQty })
+          .eq("id", existing[0].id);
+
+        if (updateErr) throw updateErr;
+      } else {
+        const { error: insertErr } = await supabase
+          .from("cart_items")
+          .insert({
+            user_id: user.id,
+            product_id: productId,
+            variant_id: variantId,
+            quantity: quantity
+          });
+
+        if (insertErr) throw insertErr;
+      }
+
+      setSuccessMsg(`Berhasil menambahkan "${product.name}" ke keranjang.`);
+      window.dispatchEvent(new Event("cart-updated"));
+      setTimeout(() => {
+        setSuccessMsg("");
+      }, 4000);
+
+    } catch (err: any) {
+      console.error("Error adding to cart:", err);
+      setErrorMsg(err.message || "Gagal menambahkan produk ke keranjang.");
+    } finally {
+      setAddingToCart(false);
+    }
   };
 
-  const currentVariant = product.variants.find((v) => v.size === selectedVariant);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <LoadingSpinner />
+      </div>
+    );
+  }
+
+  if (!product) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <p className="text-lg sm:text-xl text-muted-foreground">Produk tidak ditemukan</p>
+      </div>
+    );
+  }
+
+  const variants = product.product_variants ?? [];
+  const features = product.product_features?.map((f: any) => f.feature) ?? [];
+
+  const currentVariant = variants.find((v: any) => v.size === selectedVariant);
   const totalPrice = currentVariant ? currentVariant.price * quantity : 0;
 
   const handleQuantityChange = (delta: number) => {
@@ -54,7 +150,7 @@ export function ProductDetail() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 mb-12">
           <div className="bg-white rounded-xl overflow-hidden shadow-lg">
             <ImageWithFallback
-              src={product.image}
+              src={product.image_url}
               alt={product.name}
               className="w-full h-64 sm:h-96 lg:h-[500px] object-cover"
             />
@@ -67,19 +163,19 @@ export function ProductDetail() {
                 {product.name}
               </h1>
               <p className="text-base sm:text-lg text-muted-foreground">
-                Dari {product.poktan}
+                Dari {product.kelompok_tani?.nama}
               </p>
             </div>
 
             <div className="bg-secondary p-4 sm:p-6 rounded-xl">
               <p className="text-sm text-muted-foreground mb-2">Metode Budidaya</p>
-              <p className="text-lg sm:text-xl text-primary">{product.cultivation}</p>
+              <p className="text-lg sm:text-xl text-primary">{product.cultivation_method}</p>
             </div>
 
             <div>
               <p className="text-base sm:text-lg mb-3">Pilih Kemasan:</p>
               <div className="flex flex-wrap gap-3">
-                {product.variants.map((variant) => (
+                {variants.map((variant: any) => (
                   <button
                     key={variant.size}
                     onClick={() => {
@@ -136,9 +232,13 @@ export function ProductDetail() {
                   <p className="text-3xl sm:text-4xl text-accent mb-4">
                     Rp {totalPrice.toLocaleString("id-ID")}
                   </p>
-                  <button className="w-full bg-accent hover:bg-accent/90 text-white py-3 sm:py-4 rounded-lg transition-colors flex items-center justify-center gap-2 text-base sm:text-lg">
+                  <button
+                    onClick={handleAddToCart}
+                    disabled={addingToCart || (currentVariant ? currentVariant.stock : product.stock) <= 0}
+                    className="w-full bg-accent hover:bg-accent/90 text-white py-3 sm:py-4 rounded-lg transition-colors flex items-center justify-center gap-2 text-base sm:text-lg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
                     <ShoppingCart className="w-5 h-5 sm:w-6 sm:h-6" />
-                    Tambah ke Keranjang
+                    {addingToCart ? "Memproses..." : "Tambah ke Keranjang"}
                   </button>
                 </div>
               </>
@@ -183,7 +283,7 @@ export function ProductDetail() {
           </p>
           <h3 className="text-xl sm:text-2xl text-primary mb-4">Keunggulan Produk</h3>
           <ul className="space-y-3">
-            {product.features.map((feature, index) => (
+            {features.map((feature: string, index: number) => (
               <li key={index} className="flex gap-3 items-start">
                 <span className="text-accent text-xl flex-shrink-0">✓</span>
                 <span className="text-base sm:text-lg text-muted-foreground">{feature}</span>
@@ -192,6 +292,56 @@ export function ProductDetail() {
           </ul>
         </div>
       </div>
+
+      {/* Floating Success Notification Banner */}
+      {successMsg && (
+        <div className="fixed bottom-6 right-6 z-50 bg-emerald-600 text-white px-5 py-4 rounded-xl shadow-2xl flex items-center gap-3 border border-emerald-500 animate-slideIn">
+          <CheckCircle className="w-6 h-6 flex-shrink-0" />
+          <span className="font-semibold text-sm sm:text-base">{successMsg}</span>
+        </div>
+      )}
+
+      {/* Floating Error Notification Banner */}
+      {errorMsg && (
+        <div className="fixed bottom-6 right-6 z-50 bg-destructive text-white px-5 py-4 rounded-xl shadow-2xl flex items-center gap-3 border border-red-500 animate-slideIn">
+          <AlertTriangle className="w-6 h-6 flex-shrink-0" />
+          <span className="font-semibold text-sm sm:text-base">{errorMsg}</span>
+        </div>
+      )}
+
+      {/* AUTH LIMITATION WARNING MODAL */}
+      {authAlertOpen && (
+        <div className="fixed inset-0 bg-black/55 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full border border-border p-6 text-center transform transition-all scale-100 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex flex-col items-center space-y-4">
+              <div className="w-16 h-16 bg-accent/10 rounded-full flex items-center justify-center text-accent">
+                <ShoppingBag className="w-8 h-8" />
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-xl font-bold text-primary">Akses Terbatas</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Anda perlu masuk (login) ke dalam akun terlebih dahulu untuk menggunakan fitur keranjang belanja dan memesan produk.
+                </p>
+              </div>
+              <div className="flex w-full gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setAuthAlertOpen(false)}
+                  className="flex-1 bg-muted hover:bg-muted/80 text-foreground py-2.5 rounded-lg text-sm font-semibold transition-colors cursor-pointer"
+                >
+                  Batal
+                </button>
+                <Link
+                  to="/login"
+                  className="flex-1 bg-accent hover:bg-accent/90 text-white py-2.5 rounded-lg text-sm font-semibold transition-colors flex items-center justify-center"
+                >
+                  Masuk Sekarang
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

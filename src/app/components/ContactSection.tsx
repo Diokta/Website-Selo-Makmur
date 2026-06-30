@@ -1,21 +1,29 @@
 import { MapPin, Phone, Mail, Clock } from "lucide-react";
+import { useWebsiteContent } from "../../hooks/useWebsiteContent";
 
 export function ContactSection() {
+  const { getContent } = useWebsiteContent();
+
+  const name = getContent("identity.name", "Gabungan Kelompok Tani Selo Makmur");
+  const address = getContent("identity.address", "Jl. Letda Abdul Jalil, Salakan, Selomartani, Kalasan, Sleman, Daerah Istimewa Yogyakarta 55571");
+  const phone = getContent("identity.phone", "+62 251 8123456");
+  const email = getContent("identity.email", "info@gapoktansukamaju.id");
+
   const contactInfo = [
     {
       icon: MapPin,
       title: "Alamat Sekretariat",
-      content: "Jl. Letda Abdul Jalil, Salakan, Selomartani, Kalasan, Sleman, Daerah Istimewa Yogyakarta 55571",
+      content: address,
     },
     {
       icon: Phone,
       title: "Telepon",
-      content: "+62 251 8123456",
+      content: phone,
     },
     {
       icon: Mail,
       title: "Email",
-      content: "info@gapoktansukamaju.id",
+      content: email,
     },
     {
       icon: Clock,
@@ -77,7 +85,7 @@ export function ContactSection() {
 
         <div className="mt-10 sm:mt-12 pt-8 sm:pt-10 border-t border-white/20 text-center">
           <p className="text-sm sm:text-base text-white/80">
-            © 2026 Gabungan Kelompok Tani Selo Makmur. Semua hak dilindungi.
+            © 2026 {name}. Semua hak dilindungi.
           </p>
         </div>
       </div>

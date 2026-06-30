@@ -1,13 +1,79 @@
-import { useState } from "react";
-import { Plus, Edit, Trash2, Upload, CheckCircle, XCircle, PlusCircle, MinusCircle } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Plus, Edit, Trash2, Upload, CheckCircle, XCircle, PlusCircle, MinusCircle, AlertTriangle } from "lucide-react";
 import { ImageWithFallback } from "../../components/figma/ImageWithFallback";
+import { supabase } from "../../../lib/supabase";
+import { LoadingSpinner } from "../../components/ui/LoadingSpinner";
 
 type Variant = { size: string; price: string; stock: string };
 
 export function GapoktanProducts() {
-  const [showAddForm, setShowAddForm] = useState(false);
+  const [products, setProducts] = useState<any[]>([]);
+  const [poktans, setPoktans] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  
+  const [showForm, setShowForm] = useState(false);
+  const [editProductId, setEditProductId] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+
+  // Success / Error Alerts
+  const [errorMsg, setErrorMsg] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
+
+  // Form states
+  const [name, setName] = useState("");
+  const [poktanId, setPoktanId] = useState("");
+  const [category, setCategory] = useState("");
+  const [cultivationMethod, setCultivationMethod] = useState("Organik");
+  const [price, setPrice] = useState("");
+  const [stock, setStock] = useState("");
+  const [description, setDescription] = useState("");
+  const [unit, setUnit] = useState("kg");
+  const [harvestDate, setHarvestDate] = useState("");
+  const [badge, setBadge] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [status, setStatus] = useState("Aktif");
   const [variants, setVariants] = useState<Variant[]>([{ size: "", price: "", stock: "" }]);
   const [features, setFeatures] = useState<string[]>([""]);
+
+  // Delete Modal States
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [deleteTargetName, setDeleteTargetName] = useState("");
+
+  const categories = ["Beras", "Sayuran", "Palawija", "Bumbu", "Buah", "Bibit", "Pupuk Organik"];
+  const methods = ["Organik", "Semi-Organik", "Konvensional"];
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      // 1. Fetch products
+      const { data: prodData, error: prodError } = await supabase
+        .from("products")
+        .select("*, kelompok_tani(id, nama), product_variants(*), product_features(*)")
+        .order("created_at", { ascending: false });
+
+      if (prodError) throw prodError;
+      if (prodData) setProducts(prodData);
+
+      // 2. Fetch poktans
+      const { data: poktanData, error: poktanError } = await supabase
+        .from("kelompok_tani")
+        .select("id, nama")
+        .order("nama", { ascending: true });
+
+      if (poktanError) throw poktanError;
+      if (poktanData) setPoktans(poktanData);
+    } catch (err: any) {
+      console.error("Error loading products data:", err);
+      setErrorMsg(err.message || "Gagal memuat data produk.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const addVariant = () => setVariants([...variants, { size: "", price: "", stock: "" }]);
   const removeVariant = (i: number) => setVariants(variants.filter((_, idx) => idx !== i));
@@ -19,103 +85,234 @@ export function GapoktanProducts() {
   const updateFeature = (i: number, value: string) =>
     setFeatures(features.map((f, idx) => (idx === i ? value : f)));
 
-  const products = [
-    {
-      id: 1,
-      name: "Beras Organik Premium",
-      category: "Beras",
-      poktan: "Poktan Harapan Jaya",
-      price: 15000,
-      stock: 450,
-      unit: "kg",
-      status: "Aktif",
-      statusColor: "var(--status-success)",
-      harvestDate: "2026-05-15",
-      method: "Organik",
-      image: "https://images.unsplash.com/photo-1676281945404-4e1cb6eaf25e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=400",
-    },
-    {
-      id: 2,
-      name: "Sayuran Segar Campur",
-      category: "Sayuran",
-      poktan: "Poktan Maju Bersama",
-      price: 35000,
-      stock: 85,
-      unit: "paket",
-      status: "Aktif",
-      statusColor: "var(--status-success)",
-      harvestDate: "2026-06-01",
-      method: "Organik",
-      image: "https://images.unsplash.com/photo-1579113800032-c38bd7635818?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=400",
-    },
-    {
-      id: 3,
-      name: "Jagung Manis",
-      category: "Palawija",
-      poktan: "Poktan Berkah Tani",
-      price: 12000,
-      stock: 15,
-      unit: "kg",
-      status: "Stok Menipis",
-      statusColor: "var(--status-pending)",
-      harvestDate: "2026-05-28",
-      method: "Semi-Organik",
-      image: "https://images.unsplash.com/photo-1597362925123-77861d3fbac7?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=400",
-    },
-    {
-      id: 4,
-      name: "Cabai Merah Keriting",
-      category: "Bumbu",
-      poktan: "Poktan Berkah Tani",
-      price: 45000,
-      stock: 0,
-      unit: "kg",
-      status: "Habis",
-      statusColor: "var(--status-error)",
-      harvestDate: "2026-05-20",
-      method: "Organik",
-      image: "https://images.unsplash.com/photo-1590779033100-9f60a05a013d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=400",
-    },
-    {
-      id: 5,
-      name: "Tomat Segar",
-      category: "Sayuran",
-      poktan: "Poktan Sumber Rezeki",
-      price: 18000,
-      stock: 120,
-      unit: "kg",
-      status: "Aktif",
-      statusColor: "var(--status-success)",
-      harvestDate: "2026-06-02",
-      method: "Organik",
-      image: "https://images.unsplash.com/photo-1579113800032-c38bd7635818?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=400",
-    },
-  ];
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${Math.random()}.${fileExt}`;
+      const filePath = `products/${fileName}`;
+      const { error: uploadError } = await supabase.storage
+        .from("product-images")
+        .upload(filePath, file);
 
-  const categories = ["Beras", "Sayuran", "Palawija", "Bumbu", "Buah", "Bibit", "Pupuk Organik"];
-  const methods = ["Organik", "Semi-Organik", "Konvensional"];
-  const poktanList = [
-    "Poktan Harapan Jaya",
-    "Poktan Maju Bersama",
-    "Poktan Berkah Tani",
-    "Poktan Sumber Rezeki",
-    "Poktan Tani Makmur",
-    "Poktan Subur Jaya",
-    "Poktan Mandiri",
-    "Poktan Sejahtera",
-  ];
+      if (uploadError) throw uploadError;
 
-  const getStatusIcon = (status: string) => {
-    if (status === "Aktif") return <CheckCircle className="w-4 h-4" />;
-    if (status === "Habis") return <XCircle className="w-4 h-4" />;
+      const { data } = supabase.storage
+        .from("product-images")
+        .getPublicUrl(filePath);
+
+      setImageUrl(data.publicUrl);
+    } catch (err) {
+      console.warn("Storage upload failed, falling back to base64 encoding:", err);
+      // Fallback: encode as Base64 so it can still be displayed
+      const reader = new FileReader();
+      reader.onload = () => {
+        setImageUrl(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const resetForm = () => {
+    setName("");
+    setPoktanId("");
+    setCategory("");
+    setDescription("");
+    setCultivationMethod("Organik");
+    setPrice("");
+    setStock("");
+    setUnit("kg");
+    setHarvestDate("");
+    setBadge("");
+    setImageUrl("");
+    setStatus("Aktif");
+    setVariants([{ size: "", price: "", stock: "" }]);
+    setFeatures([""]);
+    setEditProductId(null);
+    setShowForm(false);
+    setErrorMsg("");
+  };
+
+  const handleEdit = (p: any) => {
+    setErrorMsg("");
+    setSuccessMsg("");
+    setEditProductId(p.id);
+    setName(p.name);
+    setPoktanId(p.poktan_id || "");
+    setCategory(p.category || "");
+    setDescription(p.description || "");
+    setCultivationMethod(p.cultivation_method || "Organik");
+    setPrice(String(p.price));
+    setStock(String(p.stock));
+    setUnit(p.unit || "kg");
+    setHarvestDate(p.harvest_date ? p.harvest_date.substring(0, 10) : "");
+    setBadge(p.badge || "");
+    setImageUrl(p.image_url || "");
+    setStatus(p.status || "Aktif");
+
+    if (p.product_variants && p.product_variants.length > 0) {
+      setVariants(p.product_variants.map((v: any) => ({
+        size: v.size,
+        price: String(v.price),
+        stock: String(v.stock),
+      })));
+    } else {
+      setVariants([{ size: "", price: "", stock: "" }]);
+    }
+
+    if (p.product_features && p.product_features.length > 0) {
+      setFeatures(p.product_features.map((f: any) => f.feature));
+    } else {
+      setFeatures([""]);
+    }
+
+    setShowForm(true);
+  };
+
+  const requestDelete = (p: any) => {
+    setDeleteTargetId(p.id);
+    setDeleteTargetName(p.name);
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTargetId) return;
+    setDeleteConfirmOpen(false);
+    setErrorMsg("");
+    setSuccessMsg("");
+    setLoading(true);
+    try {
+      const { error } = await supabase.from("products").delete().eq("id", deleteTargetId);
+      if (error) throw error;
+      setSuccessMsg(`Produk "${deleteTargetName}" berhasil dihapus.`);
+      setProducts(products.filter((p) => p.id !== deleteTargetId));
+    } catch (err: any) {
+      console.error("Error deleting product:", err);
+      setErrorMsg(err.message || "Gagal menghapus produk.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setErrorMsg("");
+    setSuccessMsg("");
+
+    try {
+      const productPayload = {
+        name,
+        poktan_id: poktanId || null,
+        category: category || null,
+        description: description || null,
+        cultivation_method: cultivationMethod || null,
+        price: parseFloat(price) || 0,
+        stock: parseInt(stock) || 0,
+        unit,
+        harvest_date: harvestDate || null,
+        badge: badge || null,
+        image_url: imageUrl || null,
+        status: status as any,
+      };
+
+      let productId = editProductId;
+
+      if (editProductId) {
+        // Update product
+        const { error } = await supabase
+          .from("products")
+          .update(productPayload)
+          .eq("id", editProductId);
+        if (error) throw error;
+
+        // Delete existing variants and features
+        await supabase.from("product_variants").delete().eq("product_id", editProductId);
+        await supabase.from("product_features").delete().eq("product_id", editProductId);
+        setSuccessMsg("Produk berhasil diperbarui.");
+      } else {
+        // Insert product
+        const { data, error } = await supabase
+          .from("products")
+          .insert(productPayload)
+          .select()
+          .single();
+        if (error) throw error;
+        productId = data.id;
+        setSuccessMsg("Produk baru berhasil ditambahkan.");
+      }
+
+      if (productId) {
+        // Insert variants
+        const validVariants = variants
+          .filter((v) => v.size && v.price)
+          .map((v) => ({
+            product_id: productId!,
+            size: v.size,
+            price: parseFloat(v.price) || 0,
+            stock: parseInt(v.stock) || 0,
+          }));
+
+        if (validVariants.length > 0) {
+          const { error: varError } = await supabase.from("product_variants").insert(validVariants);
+          if (varError) throw varError;
+        }
+
+        // Insert features
+        const validFeatures = features
+          .filter((f) => f.trim() !== "")
+          .map((f, idx) => ({
+            product_id: productId!,
+            feature: f,
+            sort_order: idx,
+          }));
+
+        if (validFeatures.length > 0) {
+          const { error: featError } = await supabase.from("product_features").insert(validFeatures);
+          if (featError) throw featError;
+        }
+      }
+
+      resetForm();
+      fetchData();
+    } catch (err: any) {
+      console.error("Error saving product:", err);
+      setErrorMsg(err.message || "Gagal menyimpan produk.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getStatusIcon = (prodStatus: string) => {
+    if (prodStatus === "Aktif") return <CheckCircle className="w-4 h-4" />;
+    if (prodStatus === "Habis" || prodStatus === "Ditolak") return <XCircle className="w-4 h-4" />;
     return null;
   };
+
+  const getStatusColor = (prodStatus: string) => {
+    if (prodStatus === "Aktif") return "#5a8f3a";
+    if (prodStatus === "Habis" || prodStatus === "Ditolak") return "#f44336";
+    if (prodStatus === "Stok Menipis" || prodStatus === "Menunggu Validasi") return "#ff9800";
+    return "#9e9e9e";
+  };
+
+  if (loading && products.length === 0) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <LoadingSpinner message="Memuat daftar produk..." />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl sm:text-3xl text-primary mb-2">
+          <h2 className="text-2xl sm:text-3xl text-primary mb-2 font-semibold">
             Manajemen Produk & Stok
           </h2>
           <p className="text-base text-muted-foreground">
@@ -123,67 +320,118 @@ export function GapoktanProducts() {
           </p>
         </div>
         <button
-          onClick={() => setShowAddForm(!showAddForm)}
-          className="flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white px-6 py-3 rounded-lg transition-colors"
+          onClick={() => {
+            if (showForm) resetForm();
+            else {
+              setErrorMsg("");
+              setShowForm(true);
+            }
+          }}
+          className="flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white px-6 py-3 rounded-lg transition-colors cursor-pointer"
         >
           <Plus className="w-5 h-5" />
-          Tambah Produk
+          {showForm ? "Batal" : "Tambah Produk"}
         </button>
       </div>
 
-      {/* Add Product Form */}
-      {showAddForm && (
-        <div className="bg-white rounded-xl p-6 shadow-md">
-          <h3 className="text-xl text-primary mb-6">Tambah Produk Baru</h3>
-          <form className="space-y-6">
+      {/* Success Alert Banner */}
+      {successMsg && (
+        <div className="bg-green-100 border border-green-200 text-green-800 px-4 py-3 rounded-lg text-sm font-medium animate-fadeIn">
+          {successMsg}
+        </div>
+      )}
+
+      {/* General Deletion Error Alert */}
+      {!showForm && errorMsg && (
+        <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-lg text-sm font-medium animate-fadeIn">
+          {errorMsg}
+        </div>
+      )}
+
+      {/* Add/Edit Product Form */}
+      {showForm && (
+        <div className="bg-white rounded-xl p-6 shadow-md border border-border space-y-4 animate-fadeIn">
+          <h3 className="text-xl text-primary font-semibold">
+            {editProductId ? "Edit Produk" : "Tambah Produk Baru"}
+          </h3>
+          
+          {errorMsg && (
+            <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-lg text-sm font-medium">
+              {errorMsg}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-6">
             {/* Informasi Dasar */}
             <div>
-              <p className="text-sm text-muted-foreground mb-3 pb-2 border-b border-border">Informasi Dasar</p>
+              <p className="text-sm font-semibold text-muted-foreground mb-3 pb-2 border-b border-border">Informasi Dasar</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm mb-2 text-foreground">Nama Produk</label>
+                  <label className="block text-sm mb-2 text-foreground font-medium">Nama Produk</label>
                   <input
                     type="text"
+                    required
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
                     placeholder="Contoh: Beras Putih Premium"
                     className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm mb-2 text-foreground">Kelompok Tani (Poktan)</label>
-                  <select className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
-                    <option value="">Pilih Poktan</option>
-                    {poktanList.map((p) => (
-                      <option key={p} value={p}>{p}</option>
+                  <label className="block text-sm mb-2 text-foreground font-medium">Kelompok Tani (Poktan)</label>
+                  <select
+                    value={poktanId}
+                    onChange={(e) => setPoktanId(e.target.value)}
+                    className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  >
+                    <option value="">Pilih Poktan (Atau Gapoktan)</option>
+                    {poktans.map((p) => (
+                      <option key={p.id} value={p.id}>{p.nama}</option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm mb-2 text-foreground">Kategori</label>
-                  <select className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
-                    <option value="">Pilih kategori</option>
+                  <label className="block text-sm mb-2 text-foreground font-medium">Kategori</label>
+                  <select
+                    required
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  >
+                    <option value="">Pilih Kategori</option>
                     {categories.map((cat) => (
                       <option key={cat} value={cat}>{cat}</option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm mb-2 text-foreground">Metode Budidaya</label>
-                  <select className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
+                  <label className="block text-sm mb-2 text-foreground font-medium">Metode Budidaya</label>
+                  <select
+                    value={cultivationMethod}
+                    onChange={(e) => setCultivationMethod(e.target.value)}
+                    className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  >
                     {methods.map((method) => (
                       <option key={method} value={method}>{method}</option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm mb-2 text-foreground">Tanggal Panen</label>
+                  <label className="block text-sm mb-2 text-foreground font-medium">Tanggal Panen</label>
                   <input
                     type="date"
+                    value={harvestDate}
+                    onChange={(e) => setHarvestDate(e.target.value)}
                     className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm mb-2 text-foreground">Label / Badge Produk</label>
-                  <select className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
+                  <label className="block text-sm mb-2 text-foreground font-medium">Label / Badge Produk</label>
+                  <select
+                    value={badge}
+                    onChange={(e) => setBadge(e.target.value)}
+                    className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  >
                     <option value="">Tidak ada</option>
                     <option value="Terlaris">Terlaris</option>
                     <option value="Baru">Baru</option>
@@ -191,8 +439,12 @@ export function GapoktanProducts() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm mb-2 text-foreground">Satuan Dasar</label>
-                  <select className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
+                  <label className="block text-sm mb-2 text-foreground font-medium">Satuan Dasar</label>
+                  <select
+                    value={unit}
+                    onChange={(e) => setUnit(e.target.value)}
+                    className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  >
                     <option>kg</option>
                     <option>ikat</option>
                     <option>paket</option>
@@ -201,14 +453,29 @@ export function GapoktanProducts() {
                     <option>buah</option>
                   </select>
                 </div>
+                <div>
+                  <label className="block text-sm mb-2 text-foreground font-medium">Status Publikasi</label>
+                  <select
+                    value={status}
+                    onChange={(e) => setStatus(e.target.value)}
+                    className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  >
+                    <option value="Aktif">Aktif (Tampil di Toko)</option>
+                    <option value="Stok Menipis">Stok Menipis</option>
+                    <option value="Habis">Habis</option>
+                    <option value="Menunggu Validasi">Menunggu Validasi</option>
+                  </select>
+                </div>
               </div>
             </div>
 
             {/* Deskripsi */}
             <div>
-              <p className="text-sm text-muted-foreground mb-3 pb-2 border-b border-border">Deskripsi Produk</p>
+              <p className="text-sm font-semibold text-muted-foreground mb-3 pb-2 border-b border-border">Deskripsi Produk</p>
               <textarea
                 rows={3}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
                 placeholder="Jelaskan keunggulan produk, cara budidaya, dan informasi penting lainnya..."
                 className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary resize-none"
               />
@@ -216,20 +483,26 @@ export function GapoktanProducts() {
 
             {/* Harga & Stok */}
             <div>
-              <p className="text-sm text-muted-foreground mb-3 pb-2 border-b border-border">Harga & Stok</p>
+              <p className="text-sm font-semibold text-muted-foreground mb-3 pb-2 border-b border-border">Harga & Stok (Utama)</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm mb-2 text-foreground">Harga Satuan (Rp)</label>
+                  <label className="block text-sm mb-2 text-foreground font-medium">Harga Satuan (Rp)</label>
                   <input
                     type="number"
+                    required
+                    value={price}
+                    onChange={(e) => setPrice(e.target.value)}
                     placeholder="15000"
                     className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm mb-2 text-foreground">Jumlah Stok</label>
+                  <label className="block text-sm mb-2 text-foreground font-medium">Jumlah Stok</label>
                   <input
                     type="number"
+                    required
+                    value={stock}
+                    onChange={(e) => setStock(e.target.value)}
                     placeholder="100"
                     className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                   />
@@ -240,8 +513,8 @@ export function GapoktanProducts() {
             {/* Varian Kemasan */}
             <div>
               <div className="flex items-center justify-between mb-3 pb-2 border-b border-border">
-                <p className="text-sm text-muted-foreground">Varian Kemasan <span className="text-xs">(opsional — tampil di halaman detail produk)</span></p>
-                <button type="button" onClick={addVariant} className="flex items-center gap-1 text-xs text-primary hover:text-primary/80">
+                <p className="text-sm font-semibold text-muted-foreground">Varian Kemasan <span className="text-xs font-normal">(opsional — tampil di halaman detail produk)</span></p>
+                <button type="button" onClick={addVariant} className="flex items-center gap-1 text-xs text-accent font-semibold hover:text-accent/80 cursor-pointer">
                   <PlusCircle className="w-4 h-4" /> Tambah Varian
                 </button>
               </div>
@@ -270,7 +543,7 @@ export function GapoktanProducts() {
                       className="w-20 px-3 py-2 bg-input-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
                     />
                     {variants.length > 1 && (
-                      <button type="button" onClick={() => removeVariant(i)} className="text-destructive hover:text-destructive/80">
+                      <button type="button" onClick={() => removeVariant(i)} className="text-destructive hover:text-destructive/80 cursor-pointer">
                         <MinusCircle className="w-5 h-5" />
                       </button>
                     )}
@@ -282,8 +555,8 @@ export function GapoktanProducts() {
             {/* Keunggulan Produk */}
             <div>
               <div className="flex items-center justify-between mb-3 pb-2 border-b border-border">
-                <p className="text-sm text-muted-foreground">Keunggulan Produk <span className="text-xs">(tampil di halaman detail produk)</span></p>
-                <button type="button" onClick={addFeature} className="flex items-center gap-1 text-xs text-primary hover:text-primary/80">
+                <p className="text-sm font-semibold text-muted-foreground">Keunggulan Produk <span className="text-xs font-normal">(tampil di halaman detail produk)</span></p>
+                <button type="button" onClick={addFeature} className="flex items-center gap-1 text-xs text-accent font-semibold hover:text-accent/80 cursor-pointer">
                   <PlusCircle className="w-4 h-4" /> Tambah Poin
                 </button>
               </div>
@@ -299,7 +572,7 @@ export function GapoktanProducts() {
                       className="flex-1 px-3 py-2 bg-input-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
                     />
                     {features.length > 1 && (
-                      <button type="button" onClick={() => removeFeature(i)} className="text-destructive hover:text-destructive/80">
+                      <button type="button" onClick={() => removeFeature(i)} className="text-destructive hover:text-destructive/80 cursor-pointer">
                         <MinusCircle className="w-5 h-5" />
                       </button>
                     )}
@@ -310,29 +583,47 @@ export function GapoktanProducts() {
 
             {/* Foto Produk */}
             <div>
-              <p className="text-sm text-muted-foreground mb-3 pb-2 border-b border-border">Foto Produk</p>
-              <div className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:border-primary transition-colors cursor-pointer">
-                <Upload className="w-12 h-12 text-muted-foreground mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">Klik untuk upload foto atau drag & drop</p>
-                <p className="text-xs text-muted-foreground mt-1">JPG, PNG (Max 5MB)</p>
+              <p className="text-sm font-semibold text-muted-foreground mb-3 pb-2 border-b border-border">Foto Produk</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+                <div>
+                  <label className="block text-sm mb-2 text-foreground font-medium">URL Gambar</label>
+                  <input
+                    type="text"
+                    value={imageUrl}
+                    onChange={(e) => setImageUrl(e.target.value)}
+                    placeholder="Masukkan URL gambar atau upload di samping"
+                    className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm mb-2 text-foreground font-medium">Atau Upload Gambar</label>
+                  <div className="relative border-2 border-dashed border-border rounded-lg p-4 text-center hover:border-primary transition-colors cursor-pointer">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    />
+                    <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-1" />
+                    <p className="text-xs text-muted-foreground">
+                      {uploading ? "Mengupload..." : "Klik untuk upload foto"}
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="flex gap-3 pt-2">
+            <div className="flex gap-3 pt-2 border-t border-border">
               <button
                 type="submit"
-                className="bg-primary hover:bg-primary/90 text-white px-6 py-3 rounded-lg transition-colors"
+                className="bg-primary hover:bg-primary/90 text-white px-6 py-3 rounded-lg font-medium transition-colors cursor-pointer"
               >
-                Simpan & Publikasikan
+                {editProductId ? "Simpan Perubahan" : "Simpan & Publikasikan"}
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  setShowAddForm(false);
-                  setVariants([{ size: "", price: "", stock: "" }]);
-                  setFeatures([""]);
-                }}
-                className="bg-muted hover:bg-muted/80 text-foreground px-6 py-3 rounded-lg transition-colors"
+                onClick={resetForm}
+                className="bg-muted hover:bg-muted/80 text-foreground px-6 py-3 rounded-lg font-medium transition-colors cursor-pointer"
               >
                 Batal
               </button>
@@ -342,78 +633,134 @@ export function GapoktanProducts() {
       )}
 
       {/* Products Table */}
-      <div className="bg-white rounded-xl shadow-md overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead style={{ backgroundColor: "var(--primary)" }}>
-              <tr>
-                <th className="px-4 py-4 text-left text-sm text-white">Produk</th>
-                <th className="px-4 py-4 text-left text-sm text-white">Poktan</th>
-                <th className="px-4 py-4 text-left text-sm text-white">Kategori</th>
-                <th className="px-4 py-4 text-left text-sm text-white">Harga</th>
-                <th className="px-4 py-4 text-left text-sm text-white">Stok</th>
-                <th className="px-4 py-4 text-left text-sm text-white">Metode</th>
-                <th className="px-4 py-4 text-left text-sm text-white">Status</th>
-                <th className="px-4 py-4 text-left text-sm text-white">Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {products.map((product, index) => (
-                <tr
-                  key={product.id}
-                  className={index % 2 === 0 ? "bg-white" : "bg-background"}
-                >
-                  <td className="px-4 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0">
-                        <ImageWithFallback
-                          src={product.image}
-                          alt={product.name}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      <div>
-                        <p className="text-sm text-primary">{product.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          Panen: {new Date(product.harvestDate).toLocaleDateString("id-ID")}
-                        </p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-4 text-sm text-muted-foreground">{product.poktan}</td>
-                  <td className="px-4 py-4 text-sm">{product.category}</td>
-                  <td className="px-4 py-4 text-sm">
-                    Rp {product.price.toLocaleString("id-ID")}
-                  </td>
-                  <td className="px-4 py-4 text-sm">
-                    {product.stock} {product.unit}
-                  </td>
-                  <td className="px-4 py-4 text-sm">{product.method}</td>
-                  <td className="px-4 py-4">
-                    <span
-                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs text-white"
-                      style={{ backgroundColor: product.statusColor }}
-                    >
-                      {getStatusIcon(product.status)}
-                      {product.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-4">
-                    <div className="flex gap-2">
-                      <button className="p-2 hover:bg-muted rounded-lg transition-colors">
-                        <Edit className="w-5 h-5 text-primary" />
-                      </button>
-                      <button className="p-2 hover:bg-muted rounded-lg transition-colors">
-                        <Trash2 className="w-4 h-4 text-destructive" />
-                      </button>
-                    </div>
-                  </td>
+      <div className="bg-white rounded-xl shadow-md overflow-hidden border border-border">
+        {products.length === 0 ? (
+          <div className="text-center p-12 text-muted-foreground">
+            Belum ada produk terdaftar. Klik "Tambah Produk" untuk memulai.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead style={{ backgroundColor: "var(--primary)" }}>
+                <tr>
+                  <th className="px-6 py-4 text-left text-sm text-white font-semibold">Produk</th>
+                  <th className="px-6 py-4 text-left text-sm text-white font-semibold">Poktan</th>
+                  <th className="px-6 py-4 text-left text-sm text-white font-semibold">Kategori</th>
+                  <th className="px-6 py-4 text-left text-sm text-white font-semibold">Harga</th>
+                  <th className="px-6 py-4 text-left text-sm text-white font-semibold">Stok</th>
+                  <th className="px-6 py-4 text-left text-sm text-white font-semibold">Metode</th>
+                  <th className="px-6 py-4 text-left text-sm text-white font-semibold">Status</th>
+                  <th className="px-6 py-4 text-left text-sm text-white font-semibold">Aksi</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {products.map((product, index) => (
+                  <tr
+                    key={product.id}
+                    className="hover:bg-background/25 transition-colors"
+                  >
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0">
+                          <ImageWithFallback
+                            src={product.image_url}
+                            alt={product.name}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-primary">{product.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Panen: {product.harvest_date ? new Date(product.harvest_date).toLocaleDateString("id-ID") : "-"}
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-muted-foreground font-medium">
+                      {product.kelompok_tani?.nama ?? "Gapoktan"}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-foreground">{product.category}</td>
+                    <td className="px-6 py-4 text-sm text-primary font-semibold">
+                      Rp {product.price.toLocaleString("id-ID")}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-muted-foreground font-medium">
+                      {product.stock} {product.unit || "kg"}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-foreground font-medium">{product.cultivation_method}</td>
+                    <td className="px-6 py-4">
+                      <span
+                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold text-white"
+                        style={{ backgroundColor: getStatusColor(product.status) }}
+                      >
+                        {getStatusIcon(product.status)}
+                        {product.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleEdit(product)}
+                          className="p-2 hover:bg-muted rounded-lg transition-colors cursor-pointer"
+                        >
+                          <Edit className="w-5 h-5 text-primary" />
+                        </button>
+                        <button
+                          onClick={() => requestDelete(product)}
+                          className="p-2 hover:bg-muted rounded-lg transition-colors cursor-pointer"
+                        >
+                          <Trash2 className="w-4 h-4 text-destructive" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmOpen && (
+        <div className="fixed inset-0 bg-black/55 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full border border-border p-6 transform transition-all scale-100 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex flex-col items-center text-center space-y-4">
+              {/* Warning Icon Banner */}
+              <div className="w-14 h-14 bg-destructive/10 rounded-full flex items-center justify-center text-destructive">
+                <AlertTriangle className="w-7 h-7" />
+              </div>
+
+              {/* Title & Desc */}
+              <div className="space-y-2">
+                <h3 className="text-xl font-bold text-primary">Hapus Produk?</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Apakah Anda yakin ingin menghapus produk{" "}
+                  <strong className="text-foreground font-semibold">"{deleteTargetName}"</strong>?
+                  Tindakan ini permanen dan data yang dihapus tidak dapat dipulihkan.
+                </p>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex w-full gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setDeleteConfirmOpen(false)}
+                  className="flex-1 bg-muted hover:bg-muted/80 text-foreground py-2.5 rounded-lg text-sm font-semibold transition-colors cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmDelete}
+                  className="flex-1 bg-destructive hover:bg-destructive/90 text-white py-2.5 rounded-lg text-sm font-semibold transition-colors cursor-pointer"
+                >
+                  Ya, Hapus
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

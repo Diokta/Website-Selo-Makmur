@@ -1,19 +1,25 @@
 import { MapPin, Phone, Mail, Clock, Send, MessageSquare } from "lucide-react";
+import { useWebsiteContent } from "../../hooks/useWebsiteContent";
 
 export function Contact() {
+  const { getContent } = useWebsiteContent();
+
+  const address = getContent("identity.address", "Jl. Letda Abdul Jalil, Salakan, Selomartani, Kalasan, Sleman, Daerah Istimewa Yogyakarta 55571");
+  const phone = getContent("identity.phone", "+62 251 8123456");
+  const email = getContent("identity.email", "info@gapoktansukamaju.id");
+
   const contactInfo = [
     {
       icon: MapPin,
       title: "Alamat Sekretariat",
-      content:
-        "Jl. Letda Abdul Jalil, Salakan, Selomartani, Kalasan, Sleman, Daerah Istimewa Yogyakarta 55571",
+      content: address,
       link: null,
     },
     {
       icon: Phone,
       title: "Telepon",
-      content: "+62 251 8123456",
-      link: "tel:+622518123456",
+      content: phone,
+      link: `tel:${phone.replace(/\s+/g, "")}`,
     },
     {
       icon: MessageSquare,
@@ -24,8 +30,8 @@ export function Contact() {
     {
       icon: Mail,
       title: "Email",
-      content: "info@gapoktansukamaju.id",
-      link: "mailto:info@gapoktansukamaju.id",
+      content: email,
+      link: `mailto:${email}`,
     },
     {
       icon: Clock,

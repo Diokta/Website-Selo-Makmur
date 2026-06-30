@@ -1,7 +1,17 @@
+import { useState, useEffect } from "react";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { Target, History, Users, Award, Wrench } from "lucide-react";
+import { supabase } from "../../lib/supabase";
+import { LoadingSpinner } from "../components/ui/LoadingSpinner";
+import { useWebsiteContent } from "../../hooks/useWebsiteContent";
 
 export function About() {
+  const { getContent } = useWebsiteContent();
+  const name = getContent("identity.name", "Gapoktan Selo Makmur");
+  const visi = getContent("visi", "Menjadi organisasi kelompok tani yang mandiri, profesional, dan berkelanjutan dalam menghasilkan produk pertanian berkualitas tinggi untuk meningkatkan kesejahteraan petani dan masyarakat.");
+  const misiText = getContent("misi", "Meningkatkan kualitas produksi pertanian melalui teknologi modern\nMembangun kemitraan strategis dengan berbagai pihak\nMemberdayakan petani melalui pelatihan dan pendampingan\nMenjaga kelestarian lingkungan dan pertanian berkelanjutan");
+  const misiList = misiText.split("\n").map(item => item.replace(/^[•\-\*\s]+/, "").trim()).filter(line => line !== "");
+
   const leadership = [
     {
       name: "Bapak Sutrisno",
@@ -35,16 +45,57 @@ export function About() {
     },
   ];
 
-  const poktan = [
-    { name: "Poktan Harapan Jaya", ketua: "Bapak Suparman", lokasi: "Dusun Cipanas", komoditas: "Padi, Jagung" },
-    { name: "Poktan Maju Bersama", ketua: "Ibu Siti Aminah", lokasi: "Dusun Cibeureum", komoditas: "Sayuran Organik" },
-    { name: "Poktan Berkah Tani", ketua: "Bapak Ahmad Yani", lokasi: "Dusun Cijeruk", komoditas: "Padi, Cabai" },
-    { name: "Poktan Sumber Rezeki", ketua: "Bapak Bambang", lokasi: "Dusun Pasir Angin", komoditas: "Hortikultura" },
-    { name: "Poktan Tani Makmur", ketua: "Ibu Eka Wati", lokasi: "Dusun Cisarua", komoditas: "Padi, Sayuran" },
-    { name: "Poktan Subur Jaya", ketua: "Bapak Wahyudi", lokasi: "Dusun Bojong", komoditas: "Buah-buahan" },
-    { name: "Poktan Mandiri", ketua: "Bapak Solihin", lokasi: "Dusun Cimande", komoditas: "Padi, Palawija" },
-    { name: "Poktan Sejahtera", ketua: "Ibu Nurhasanah", lokasi: "Dusun Sukajaya", komoditas: "Sayuran, Bumbu" },
-  ];
+  const [poktan, setPoktan] = useState<any[]>([]);
+  const [assets, setAssets] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      // Fetch kelompok tani
+      const { data: poktanData } = await supabase
+        .from("kelompok_tani")
+        .select("*")
+        .order("nama", { ascending: true });
+      if (poktanData) {
+        setPoktan(
+          poktanData.map((item) => ({
+            name: item.nama,
+            ketua: item.ketua ?? "-",
+            lokasi: item.dusun ?? "-",
+            komoditas: item.komoditas_utama ?? "-",
+          }))
+        );
+      }
+
+      // Fetch assets
+      const { data: assetsData } = await supabase
+        .from("gapoktan_assets")
+        .select("*")
+        .order("nama", { ascending: true });
+      if (assetsData) {
+        setAssets(
+          assetsData.map((item) => ({
+            nama: item.nama,
+            deskripsi: item.deskripsi ?? "",
+            kondisi: item.kondisi ?? "Baik",
+            tahun: item.tahun_perolehan ? String(item.tahun_perolehan) : "-",
+            image: item.image_url ?? "https://images.unsplash.com/photo-1605146959272-0e97a1159b0f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800",
+          }))
+        );
+      }
+      setLoading(false);
+    };
+    fetchData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <LoadingSpinner />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen">
@@ -54,7 +105,7 @@ export function About() {
             Tentang Kami
           </h1>
           <p className="text-lg sm:text-xl text-white/90 max-w-3xl mx-auto">
-            Mengenal lebih dekat Gabungan Kelompok Tani Selo Makmur
+            Mengenal lebih dekat {name}
           </p>
         </div>
       </div>
@@ -68,7 +119,7 @@ export function About() {
                 <h2 className="text-3xl sm:text-4xl text-primary">Visi</h2>
               </div>
               <p className="text-base sm:text-lg text-muted-foreground leading-relaxed">
-                Menjadi organisasi kelompok tani yang mandiri, profesional, dan berkelanjutan dalam menghasilkan produk pertanian berkualitas tinggi untuk meningkatkan kesejahteraan petani dan masyarakat.
+                {visi}
               </p>
             </div>
             <div className="bg-secondary p-6 sm:p-8 rounded-xl">
@@ -77,22 +128,12 @@ export function About() {
                 <h2 className="text-3xl sm:text-4xl text-primary">Misi</h2>
               </div>
               <ul className="space-y-3 text-base sm:text-lg text-muted-foreground">
-                <li className="flex gap-3">
-                  <span className="text-accent flex-shrink-0">•</span>
-                  <span>Meningkatkan kualitas produksi pertanian melalui teknologi modern</span>
-                </li>
-                <li className="flex gap-3">
-                  <span className="text-accent flex-shrink-0">•</span>
-                  <span>Membangun kemitraan strategis dengan berbagai pihak</span>
-                </li>
-                <li className="flex gap-3">
-                  <span className="text-accent flex-shrink-0">•</span>
-                  <span>Memberdayakan petani melalui pelatihan dan pendampingan</span>
-                </li>
-                <li className="flex gap-3">
-                  <span className="text-accent flex-shrink-0">•</span>
-                  <span>Menjaga kelestarian lingkungan dan pertanian berkelanjutan</span>
-                </li>
+                {misiList.map((item, index) => (
+                  <li key={index} className="flex gap-3">
+                    <span className="text-accent flex-shrink-0">•</span>
+                    <span>{item}</span>
+                  </li>
+                ))}
               </ul>
             </div>
           </div>
@@ -161,50 +202,7 @@ export function About() {
             Gapoktan Selo Makmur dilengkapi dengan berbagai peralatan modern untuk mendukung proses produksi dan pasca panen anggota.
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[
-              {
-                nama: "Mesin Penggiling Padi",
-                deskripsi: "Kapasitas 2 ton/jam. Digunakan untuk menggiling gabah menjadi beras siap konsumsi.",
-                kondisi: "Baik",
-                tahun: "2021",
-                image: "https://images.unsplash.com/photo-1605146959272-0e97a1159b0f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800",
-              },
-              {
-                nama: "Blower Pengering Gabah",
-                deskripsi: "Pengering mekanis berkapasitas 5 ton/siklus untuk menjaga kualitas gabah di musim hujan.",
-                kondisi: "Baik",
-                tahun: "2022",
-                image: "https://images.unsplash.com/photo-1669822818164-cf66cd0dac4c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800",
-              },
-              {
-                nama: "Traktor Tangan",
-                deskripsi: "Traktor tangan untuk pengolahan lahan sawah. Tersedia 3 unit yang dapat dipinjam anggota.",
-                kondisi: "Baik",
-                tahun: "2020",
-                image: "https://images.unsplash.com/photo-1668415762833-e0607ffae375?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800",
-              },
-              {
-                nama: "Pompa Irigasi",
-                deskripsi: "Pompa air untuk sistem irigasi sawah anggota. Debit 50 liter/detik.",
-                kondisi: "Baik",
-                tahun: "2021",
-                image: "https://images.unsplash.com/photo-1645727527942-f12e14a0c841?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800",
-              },
-              {
-                nama: "Gudang Penyimpanan",
-                deskripsi: "Gudang berkapasitas 50 ton untuk penyimpanan gabah dan sarana produksi pertanian.",
-                kondisi: "Baik",
-                tahun: "2019",
-                image: "https://images.unsplash.com/photo-1556114846-f753bec8a9f5?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800",
-              },
-              {
-                nama: "Mesin Combine Harvester",
-                deskripsi: "Mesin panen padi modern yang dapat memanen sekaligus merontokkan gabah di lahan.",
-                kondisi: "Baik",
-                tahun: "2023",
-                image: "https://images.unsplash.com/photo-1635223735346-8442e3601b58?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800",
-              },
-            ].map((aset, index) => (
+            {assets.map((aset, index) => (
               <div key={index} className="bg-white rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-shadow border border-border">
                 <div className="h-48 overflow-hidden">
                   <ImageWithFallback
