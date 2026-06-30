@@ -1,8 +1,13 @@
 import { Link } from "react-router";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { ChevronRight } from "lucide-react";
+import { useWebsiteContent } from "../../hooks/useWebsiteContent";
 
 export function HeroSection() {
+  const { getContent } = useWebsiteContent();
+  const title = getContent("hero.title", "Gabungan Kelompok Tani Selo Makmur");
+  const subtitle = getContent("hero.subtitle", "Bersama Membangun Pertanian Berkelanjutan untuk Masa Depan yang Lebih Hijau");
+
   return (
     <div className="relative h-[70vh] min-h-[500px] overflow-hidden">
       <div className="absolute inset-0">
@@ -17,10 +22,10 @@ export function HeroSection() {
       <div className="relative h-full flex items-center justify-center px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-4xl mx-auto">
           <h1 className="text-4xl sm:text-5xl lg:text-6xl text-white mb-4 sm:mb-6">
-            Gabungan Kelompok Tani
+            {title}
           </h1>
           <p className="text-lg sm:text-xl lg:text-2xl text-white/90 mb-6 sm:mb-8 px-4">
-            Bersama Membangun Pertanian Berkelanjutan untuk Masa Depan yang Lebih Hijau
+            {subtitle}
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center px-4">
             <Link

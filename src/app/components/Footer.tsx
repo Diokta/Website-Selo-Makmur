@@ -1,15 +1,36 @@
 import { Link } from "react-router";
-import { MapPin, Phone, Mail, Facebook, Instagram, Youtube } from "lucide-react";
+import { MapPin, Phone, Mail, Facebook, Instagram, Youtube, Sprout } from "lucide-react";
+import { useWebsiteContent } from "../../hooks/useWebsiteContent";
 
 export function Footer() {
+  const { getContent } = useWebsiteContent();
+
+  const name = getContent("identity.name", "Gapoktan Selo Makmur");
+  const subtitle = getContent("hero.subtitle", "Bersama membangun pertanian berkelanjutan untuk masa depan yang lebih hijau");
+  const address = getContent("identity.address", "Jl. Letda Abdul Jalil, Selomartani, Kalasan, Sleman, DIY 55571");
+  const phone = getContent("identity.phone", "+62 251 8123456");
+  const email = getContent("identity.email", "info@gapoktansukamaju.id");
+  const logoUrl = getContent("identity.logo", "");
+
   return (
     <footer className="text-white" style={{ backgroundColor: "var(--footer-background)" }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-12">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
           <div>
-            <h3 className="text-lg sm:text-xl mb-4">Gapoktan Selo Makmur</h3>
+            <div className="flex items-center gap-3 mb-4">
+              {logoUrl ? (
+                <div className="w-10 h-10 flex items-center justify-center bg-white rounded-full p-0.5 border border-white/10 flex-shrink-0">
+                  <img src={logoUrl} alt="Logo" className="w-full h-full object-contain rounded-full" />
+                </div>
+              ) : (
+                <div className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center flex-shrink-0">
+                  <Sprout className="w-6 h-6 text-white" />
+                </div>
+              )}
+              <h3 className="text-lg sm:text-xl font-bold">{name}</h3>
+            </div>
             <p className="text-sm sm:text-base text-white/80 mb-4">
-              Bersama membangun pertanian berkelanjutan untuk masa depan yang lebih hijau
+              {subtitle}
             </p>
             <div className="flex gap-3">
               <a href="#" className="w-9 h-9 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center transition-colors">
@@ -50,22 +71,22 @@ export function Footer() {
             <ul className="space-y-3 text-sm sm:text-base">
               <li className="flex gap-2 text-white/80">
                 <MapPin className="w-5 h-5 flex-shrink-0" />
-                <span>Jl. Letda Abdul Jalil, Selomartani, Kalasan, Sleman, DIY 55571</span>
+                <span>{address}</span>
               </li>
               <li className="flex gap-2 text-white/80">
                 <Phone className="w-5 h-5 flex-shrink-0" />
-                <span>+62 251 8123456</span>
+                <span>{phone}</span>
               </li>
               <li className="flex gap-2 text-white/80">
                 <Mail className="w-5 h-5 flex-shrink-0" />
-                <span>info@gapoktansukamaju.id</span>
+                <span>{email}</span>
               </li>
             </ul>
           </div>
         </div>
 
         <div className="mt-8 pt-8 border-t border-white/20 text-center text-sm sm:text-base text-white/80">
-          <p>© 2026 Gabungan Kelompok Tani Selo Makmur. Semua hak dilindungi.</p>
+          <p>© 2026 {name}. Semua hak dilindungi.</p>
         </div>
       </div>
     </footer>

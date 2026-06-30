@@ -1,24 +1,38 @@
-import { Users, MapPin, Sprout } from "lucide-react";
+import { Users, MapPin, Sprout, Building2 } from "lucide-react";
+import { useWebsiteContent } from "../../hooks/useWebsiteContent";
 
 export function ProfileStats() {
+  const { getContent } = useWebsiteContent();
+
+  const totalPoktan = getContent("stats.total_poktan", "24");
+  const totalFarmers = getContent("stats.total_farmers", "150");
+  const totalProducts = getContent("stats.total_products", "12");
+  const luasLahan = getContent("stats.luas_lahan", "850");
+
   const stats = [
     {
-      icon: Users,
-      value: "24",
+      icon: Building2,
+      value: totalPoktan,
       label: "Kelompok Tani",
       description: "Poktan Aktif",
     },
     {
-      icon: MapPin,
-      value: "850",
-      label: "Hektar",
-      description: "Luas Lahan",
+      icon: Users,
+      value: totalFarmers,
+      label: "Petani Mitra",
+      description: "Petani Terdaftar",
     },
     {
       icon: Sprout,
-      value: "12+",
+      value: totalProducts,
       label: "Komoditas",
-      description: "Hasil Panen",
+      description: "Hasil Panen & Produk",
+    },
+    {
+      icon: MapPin,
+      value: luasLahan + " Ha",
+      label: "Luas Lahan",
+      description: "Area Pertanian",
     },
   ];
 
@@ -34,7 +48,7 @@ export function ProfileStats() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
           {stats.map((stat, index) => (
             <div
               key={index}

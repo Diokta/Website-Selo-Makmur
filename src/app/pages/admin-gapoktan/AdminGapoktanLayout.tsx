@@ -1,4 +1,4 @@
-import { Outlet, Link, useLocation } from "react-router";
+import { Outlet, Link, useLocation, useNavigate } from "react-router";
 import {
   LayoutDashboard,
   Package,
@@ -11,12 +11,98 @@ import {
   X,
   LogOut,
   Bell,
+  XCircle,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useAuth } from "../../../hooks/useAuth";
+import { LoadingSpinner } from "../../components/ui/LoadingSpinner";
+import { supabase } from "../../../lib/supabase";
 
 export function AdminGapoktanLayout() {
+  const { user, role, loading: authLoading, profile, signOut } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+
+  const fetchNotifications = async () => {
+    try {
+      const newNotifs: any[] = [];
+
+      // 1. Fetch pending orders
+      const { count: pendingOrderCount } = await supabase
+        .from("orders")
+        .select("*", { count: "exact", head: true })
+        .in("order_status", ["Menunggu Pembayaran", "Dikemas"]);
+
+      if (pendingOrderCount && pendingOrderCount > 0) {
+        newNotifs.push({
+          id: "pending-orders",
+          title: "Pesanan Baru Masuk",
+          description: `${pendingOrderCount} pesanan perlu diproses.`,
+          path: "/admin-gapoktan/orders",
+        });
+      }
+
+      // 3. Fetch low stock products
+      const { data: lowStockProducts } = await supabase
+        .from("products")
+        .select("name, stock")
+        .lt("stock", 20)
+        .limit(2);
+
+      lowStockProducts?.forEach((p, idx) => {
+        newNotifs.push({
+          id: `low-stock-${idx}`,
+          title: "Stok Produk Menipis",
+          description: `Stok ${p.name} sisa ${p.stock} unit.`,
+          path: "/admin-gapoktan/products",
+        });
+      });
+
+      setNotifications(newNotifs);
+    } catch (err) {
+      console.error("Gagal mengambil notifikasi:", err);
+    }
+  };
+
+  useEffect(() => {
+    if (user && role === "super_admin") {
+      fetchNotifications();
+      const interval = setInterval(fetchNotifications, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [user, role]);
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <LoadingSpinner />
+      </div>
+    );
+  }
+
+  if (!user || role !== "super_admin") {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="bg-white rounded-xl p-8 sm:p-12 text-center shadow-md max-w-md w-full border border-border">
+          <XCircle className="w-16 h-16 text-destructive mx-auto mb-4" />
+          <h2 className="text-2xl text-primary mb-4">Akses Ditolak</h2>
+          <p className="text-base text-muted-foreground mb-6">
+            Halaman ini hanya dapat diakses oleh Admin Gapoktan.
+          </p>
+          <Link
+            to="/"
+            className="inline-flex items-center justify-center w-full bg-accent hover:bg-accent/90 text-white py-3 rounded-lg transition-colors text-base font-medium"
+          >
+            Kembali ke Beranda
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   const navigation = [
     { name: "Dashboard Utama", href: "/admin-gapoktan", icon: LayoutDashboard },
@@ -126,19 +212,90 @@ export function AdminGapoktanLayout() {
               </h1>
             </div>
             <div className="flex items-center gap-4">
-              <button className="relative p-2 hover:bg-muted rounded-lg">
-                <Bell className="w-6 h-6 text-foreground" />
-                <span
-                  className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-xs text-white"
-                  style={{ backgroundColor: "var(--accent)" }}
-                >
-                  3
-                </span>
-              </button>
+               <div className="relative">
+                 <button
+                   onClick={() => setIsNotifOpen(!isNotifOpen)}
+                   className="relative p-2 hover:bg-muted rounded-lg transition-colors focus:outline-none cursor-pointer"
+                 >
+                   <Bell className="w-6 h-6 text-foreground" />
+                   {notifications.length > 0 && (
+                     <span
+                       className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-xs text-white font-bold"
+                       style={{ backgroundColor: "var(--accent)" }}
+                     >
+                       {notifications.length}
+                     </span>
+                   )}
+                 </button>
+
+                 {isNotifOpen && (
+                   <>
+                     <div className="fixed inset-0 z-40" onClick={() => setIsNotifOpen(false)} />
+                     <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-lg border border-border overflow-hidden z-50">
+                       <div className="p-4 border-b border-border bg-background flex justify-between items-center">
+                         <h4 className="font-semibold text-primary text-sm">Notifikasi</h4>
+                         {notifications.length > 0 && (
+                           <span className="text-xs text-accent font-semibold">{notifications.length} Penting</span>
+                         )}
+                       </div>
+                       <div className="divide-y divide-border max-h-72 overflow-y-auto">
+                         {notifications.length === 0 ? (
+                           <div className="p-6 text-center text-sm text-muted-foreground">
+                             Tidak ada notifikasi baru
+                           </div>
+                         ) : (
+                           notifications.map((notif) => (
+                             <div
+                               key={notif.id}
+                               onClick={() => {
+                                 navigate(notif.path);
+                                 setIsNotifOpen(false);
+                               }}
+                               className={`p-4 cursor-pointer hover:bg-background transition-colors border-l-4 text-left ${
+                                 notif.id.includes("low-stock")
+                                   ? "border-l-destructive"
+                                   : notif.id.includes("orders")
+                                   ? "border-l-accent"
+                                   : "border-l-primary"
+                               }`}
+                             >
+                               <p className="text-xs font-bold text-primary mb-0.5">{notif.title}</p>
+                               <p className="text-xs text-muted-foreground leading-tight">{notif.description}</p>
+                             </div>
+                           ))
+                         )}
+                       </div>
+                       {notifications.length > 0 && (
+                         <div className="p-2.5 bg-background text-center border-t border-border">
+                           <button
+                             onClick={() => {
+                               fetchNotifications();
+                               setIsNotifOpen(false);
+                             }}
+                             className="text-xs text-primary font-semibold hover:underline cursor-pointer"
+                           >
+                             Perbarui Data
+                           </button>
+                         </div>
+                       )}
+                     </div>
+                   </>
+                 )}
+               </div>
               <div className="hidden sm:block text-right">
-                <p className="text-sm text-foreground">Bapak Sutrisno</p>
-                <p className="text-xs text-muted-foreground">Ketua Gapoktan</p>
+                <p className="text-sm font-semibold text-foreground">{profile?.name ?? "Admin"}</p>
+                <p className="text-xs text-muted-foreground">Super Admin</p>
               </div>
+              <button
+                onClick={async () => {
+                  await signOut();
+                  navigate("/login");
+                }}
+                className="flex items-center gap-2 text-sm text-destructive hover:bg-destructive/10 px-3 py-2 rounded-lg transition-colors font-medium cursor-pointer"
+              >
+                <LogOut className="w-4 h-4" />
+                Keluar
+              </button>
             </div>
           </div>
         </header>

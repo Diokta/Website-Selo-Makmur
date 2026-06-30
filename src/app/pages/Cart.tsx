@@ -1,48 +1,139 @@
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { Trash2, Minus, Plus, ShoppingBag, ArrowRight } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useAuth } from "../../hooks/useAuth";
+import { supabase } from "../../lib/supabase";
+import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 
 export function Cart() {
-  const [cartItems, setCartItems] = useState([
-    {
-      id: 1,
-      name: "Beras Organik Premium",
-      variant: "5kg",
-      price: 75000,
-      quantity: 2,
-      image: "https://images.unsplash.com/photo-1676281945404-4e1cb6eaf25e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwyfHxJbmRvbmVzaWFuJTIwZmFybWVycyUyMHdvcmtpbmclMjBpbiUyMHJpY2UlMjBmaWVsZHxlbnwxfHx8fDE3ODA0NjExNzh8MA&ixlib=rb-4.1.0&q=80&w=1080",
-    },
-    {
-      id: 2,
-      name: "Paket Sayuran Segar",
-      variant: "1 paket",
-      price: 35000,
-      quantity: 1,
-      image: "https://images.unsplash.com/photo-1579113800032-c38bd7635818?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxmcmVzaCUyMHZlZ2V0YWJsZXMlMjBoYXJ2ZXN0JTIwb3JnYW5pYyUyMHByb2R1Y2V8ZW58MXx8fHwxNzgwNDYxMTgyfDA&ixlib=rb-4.1.0&q=80&w=1080",
-    },
-  ]);
+  const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
+  const [cartItems, setCartItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [checkedIds, setCheckedIds] = useState<string[]>([]);
 
-  const updateQuantity = (id: number, delta: number) => {
-    setCartItems(
-      cartItems.map((item) =>
-        item.id === id
-          ? { ...item, quantity: Math.max(1, item.quantity + delta) }
-          : item
-      )
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
+    const fetchCart = async () => {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("cart_items")
+        .select("*, products(name, price, unit, image_url, stock), product_variants(size, price, stock)")
+        .eq("user_id", user.id);
+
+      if (data) {
+        const mapped = data.map((item: any) => ({
+          id: item.id,
+          product_id: item.product_id,
+          variant_id: item.variant_id,
+          name: item.products?.name ?? "Produk",
+          variant: item.product_variants?.size ?? item.products?.unit ?? "Porsi",
+          price: item.product_variants?.price ?? item.products?.price ?? 0,
+          quantity: item.quantity,
+          maxStock: item.product_variants?.stock ?? item.products?.stock ?? 99,
+          image: item.products?.image_url ?? "https://images.unsplash.com/photo-1579113800032-c38bd7635818?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxmcmVzaCUyMHZlZ2V0YWJsZXMlMjBoYXJ2ZXN0JTIwb3JnYW5pYyUyMHByb2R1Y2V8ZW58MXx8fHwxNzgwNDYxMTgyfDA&ixlib=rb-4.1.0&q=80&w=1080",
+        }));
+        setCartItems(mapped);
+        setCheckedIds(mapped.map((item) => item.id));
+      }
+      setLoading(false);
+    };
+
+    fetchCart();
+  }, [user, authLoading]);
+
+  const updateQuantity = async (id: string, delta: number) => {
+    const item = cartItems.find((i) => i.id === id);
+    if (!item) return;
+
+    const newQty = item.quantity + delta;
+    if (newQty < 1 || newQty > item.maxStock) return;
+
+    const { error } = await supabase
+      .from("cart_items")
+      .update({ quantity: newQty })
+      .eq("id", id);
+
+    if (!error) {
+      setCartItems((prev) =>
+        prev.map((i) => (i.id === id ? { ...i, quantity: newQty } : i))
+      );
+      window.dispatchEvent(new Event("cart-updated"));
+    }
+  };
+
+  const removeItem = async (id: string) => {
+    const { error } = await supabase
+      .from("cart_items")
+      .delete()
+      .eq("id", id);
+
+    if (!error) {
+      setCartItems((prev) => prev.filter((i) => i.id !== id));
+      setCheckedIds((prev) => prev.filter((item) => item !== id));
+      window.dispatchEvent(new Event("cart-updated"));
+    }
+  };
+
+  const toggleCheck = (id: string) => {
+    setCheckedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
     );
   };
 
-  const removeItem = (id: number) => {
-    setCartItems(cartItems.filter((item) => item.id !== id));
+  const toggleSelectAll = () => {
+    if (checkedIds.length === cartItems.length) {
+      setCheckedIds([]);
+    } else {
+      setCheckedIds(cartItems.map((item) => item.id));
+    }
   };
 
-  const subtotal = cartItems.reduce(
+  const handleCheckout = () => {
+    navigate("/checkout", { state: { selectedIds: checkedIds } });
+  };
+
+  // Subtotal using selected/checked items only
+  const checkedItems = cartItems.filter((item) => checkedIds.includes(item.id));
+  const subtotal = checkedItems.reduce(
     (sum, item) => sum + item.price * item.quantity,
     0
   );
-  const shipping = subtotal > 100000 ? 0 : 10000;
-  const total = subtotal + shipping;
+  const total = subtotal;
+
+  if (authLoading || (user && loading)) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <LoadingSpinner />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="bg-white rounded-xl p-8 sm:p-12 text-center shadow-md max-w-md w-full border border-border">
+          <ShoppingBag className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+          <h2 className="text-2xl text-primary mb-4">Akses Terbatas</h2>
+          <p className="text-base text-muted-foreground mb-6">
+            Silakan masuk terlebih dahulu untuk melihat dan mengelola keranjang belanja Anda.
+          </p>
+          <Link
+            to="/login"
+            className="inline-flex items-center justify-center w-full bg-accent hover:bg-accent/90 text-white py-3 rounded-lg transition-colors text-base font-medium"
+          >
+            Masuk Sekarang
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -78,27 +169,50 @@ export function Cart() {
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-4">
+              {/* Select All Checkbox */}
+              <div className="bg-white rounded-xl p-4 shadow-md flex items-center gap-3 border border-border">
+                <input
+                  type="checkbox"
+                  checked={cartItems.length > 0 && checkedIds.length === cartItems.length}
+                  onChange={toggleSelectAll}
+                  className="w-5 h-5 text-accent rounded focus:ring-accent border-border cursor-pointer accent-accent"
+                />
+                <span className="text-sm font-semibold text-primary">
+                  Pilih Semua ({cartItems.length} Produk)
+                </span>
+              </div>
+
+              {/* Cart List */}
               {cartItems.map((item) => (
                 <div
                   key={item.id}
-                  className="bg-white rounded-xl p-4 sm:p-6 shadow-md flex gap-4 sm:gap-6"
+                  className="bg-white rounded-xl p-4 sm:p-6 shadow-md flex items-center gap-3 sm:gap-6 border border-border"
                 >
-                  <div className="w-24 h-24 sm:w-32 sm:h-32 flex-shrink-0 rounded-lg overflow-hidden">
+                  {/* Item Checkbox */}
+                  <input
+                    type="checkbox"
+                    checked={checkedIds.includes(item.id)}
+                    onChange={() => toggleCheck(item.id)}
+                    className="w-5 h-5 text-accent rounded focus:ring-accent border-border cursor-pointer accent-accent flex-shrink-0"
+                  />
+                  
+                  <div className="w-20 h-20 sm:w-28 sm:h-28 flex-shrink-0 rounded-lg overflow-hidden">
                     <ImageWithFallback
                       src={item.image}
                       alt={item.name}
                       className="w-full h-full object-cover"
                     />
                   </div>
+                  
                   <div className="flex-1 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="flex-1">
-                      <h3 className="text-lg sm:text-xl text-primary mb-2">
+                      <h3 className="text-lg sm:text-xl text-primary font-semibold mb-1">
                         {item.name}
                       </h3>
-                      <p className="text-sm sm:text-base text-muted-foreground mb-3">
+                      <p className="text-sm text-muted-foreground mb-2">
                         Kemasan: {item.variant}
                       </p>
-                      <p className="text-lg sm:text-xl text-accent">
+                      <p className="text-lg font-bold text-accent">
                         Rp {item.price.toLocaleString("id-ID")}
                       </p>
                     </div>
@@ -106,23 +220,24 @@ export function Cart() {
                       <div className="flex items-center gap-2 sm:gap-3">
                         <button
                           onClick={() => updateQuantity(item.id, -1)}
-                          className="w-8 h-8 bg-secondary hover:bg-muted rounded-lg flex items-center justify-center transition-colors"
+                          className="w-8 h-8 bg-secondary hover:bg-muted rounded-lg flex items-center justify-center transition-colors cursor-pointer"
                         >
-                          <Minus className="w-4 h-4" />
+                          <Minus className="w-4 h-4 text-primary" />
                         </button>
-                        <span className="text-lg sm:text-xl text-primary min-w-[2rem] text-center">
+                        <span className="text-lg font-bold text-primary min-w-[2rem] text-center">
                           {item.quantity}
                         </span>
                         <button
                           onClick={() => updateQuantity(item.id, 1)}
-                          className="w-8 h-8 bg-secondary hover:bg-muted rounded-lg flex items-center justify-center transition-colors"
+                          className="w-8 h-8 bg-secondary hover:bg-muted rounded-lg flex items-center justify-center transition-colors cursor-pointer"
                         >
-                          <Plus className="w-4 h-4" />
+                          <Plus className="w-4 h-4 text-primary" />
                         </button>
                       </div>
                       <button
                         onClick={() => removeItem(item.id)}
-                        className="p-2 text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
+                        className="p-2 text-destructive hover:bg-destructive/10 rounded-lg transition-colors cursor-pointer"
+                        title="Hapus dari Keranjang"
                       >
                         <Trash2 className="w-5 h-5" />
                       </button>
@@ -138,40 +253,29 @@ export function Cart() {
                 <div className="space-y-4 mb-6">
                   <div className="flex justify-between text-base sm:text-lg">
                     <span className="text-muted-foreground">Subtotal</span>
-                    <span className="text-primary">
+                    <span className="text-primary font-semibold">
                       Rp {subtotal.toLocaleString("id-ID")}
                     </span>
                   </div>
-                  <div className="flex justify-between text-base sm:text-lg">
-                    <span className="text-muted-foreground">Ongkir</span>
-                    <span className="text-primary">
-                      {shipping === 0 ? (
-                        <span className="text-accent">Gratis</span>
-                      ) : (
-                        `Rp ${shipping.toLocaleString("id-ID")}`
-                      )}
-                    </span>
-                  </div>
-                  {shipping > 0 && (
-                    <p className="text-sm text-muted-foreground">
-                      Gratis ongkir untuk belanja di atas Rp 100.000
-                    </p>
-                  )}
+                  <p className="text-xs text-amber-800 bg-amber-50/70 border border-amber-200 rounded-lg p-3 leading-relaxed">
+                    Harga di atas belum termasuk ongkos kirim. Ongkos kirim akan dihitung saat Anda memilih kurir di halaman pembayaran.
+                  </p>
                   <div className="border-t border-border pt-4">
                     <div className="flex justify-between text-xl sm:text-2xl">
-                      <span className="text-primary">Total</span>
-                      <span className="text-accent">
+                      <span className="text-primary font-bold">Total</span>
+                      <span className="text-accent font-bold">
                         Rp {total.toLocaleString("id-ID")}
                       </span>
                     </div>
                   </div>
                 </div>
-                <Link
-                  to="/checkout"
-                  className="block w-full bg-accent hover:bg-accent/90 text-white py-3 sm:py-4 rounded-lg transition-colors text-center text-base sm:text-lg"
+                <button
+                  onClick={handleCheckout}
+                  disabled={checkedIds.length === 0}
+                  className="block w-full bg-accent hover:bg-accent/90 disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed text-white py-3 sm:py-4 rounded-lg transition-colors text-center text-base sm:text-lg font-semibold cursor-pointer"
                 >
-                  Lanjut ke Pembayaran
-                </Link>
+                  Lanjut ke Pembayaran ({checkedIds.length})
+                </button>
                 <Link
                   to="/shop"
                   className="block w-full mt-3 text-center text-accent hover:text-accent/80 py-2 text-base sm:text-lg transition-colors"

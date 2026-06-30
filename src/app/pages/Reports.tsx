@@ -1,65 +1,158 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { Download, TrendingUp, Package, DollarSign, Users } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { supabase } from "../../lib/supabase";
+import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 
 export function Reports() {
   const [selectedPeriod, setSelectedPeriod] = useState("2026");
+  const [loading, setLoading] = useState(true);
+  const [monthlySales, setMonthlySales] = useState<any[]>([]);
+  const [poktanContribution, setPoktanContribution] = useState<any[]>([]);
+  const [topProducts, setTopProducts] = useState<any[]>([]);
+  const [stats, setStats] = useState<any[]>([]);
 
-  const monthlySales = [
-    { id: "jan", month: "Jan", omset: 45000000, terjual: 3200 },
-    { id: "feb", month: "Feb", omset: 52000000, terjual: 3800 },
-    { id: "mar", month: "Mar", omset: 48000000, terjual: 3500 },
-    { id: "apr", month: "Apr", omset: 58000000, terjual: 4200 },
-    { id: "may", month: "Mei", omset: 63000000, terjual: 4600 },
-    { id: "jun", month: "Jun", omset: 55000000, terjual: 4000 },
-  ];
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      const year = parseInt(selectedPeriod);
+      const startDate = `${year}-01-01T00:00:00Z`;
+      const endDate = `${year}-12-31T23:59:59Z`;
 
-  const poktanContribution = [
-    { id: "poktan-1", name: "Poktan Harapan Jaya", value: 28, color: "#7ca64c" },
-    { id: "poktan-2", name: "Poktan Maju Bersama", value: 22, color: "#5a8f3a" },
-    { id: "poktan-3", name: "Poktan Berkah Tani", value: 18, color: "#9dc183" },
-    { id: "poktan-4", name: "Poktan Tani Makmur", value: 15, color: "#d4a373" },
-    { id: "poktan-other", name: "Lainnya", value: 17, color: "#b8965f" },
-  ];
+      // 1. Fetch finance records for selected year
+      const { data: financeData } = await supabase
+        .from("finance_records")
+        .select("*, kelompok_tani(id, nama)")
+        .eq("period_year", year);
 
-  const topProducts = [
-    { rank: 1, product: "Beras Organik Premium", sales: "1,250 kg", revenue: "Rp 18.750.000" },
-    { rank: 2, product: "Paket Sayuran Segar", sales: "850 paket", revenue: "Rp 29.750.000" },
-    { rank: 3, product: "Jagung Manis Organik", sales: "680 kg", revenue: "Rp 8.160.000" },
-    { rank: 4, product: "Cabai Merah Segar", sales: "420 kg", revenue: "Rp 18.900.000" },
-    { rank: 5, product: "Beras Merah Organik", sales: "380 kg", revenue: "Rp 6.840.000" },
-  ];
+      // 2. Fetch orders and order_items for selected year
+      const { data: ordersData } = await supabase
+        .from("orders")
+        .select("id, ordered_at, total_amount, subtotal, order_items(quantity, product_name, subtotal)")
+        .gte("ordered_at", startDate)
+        .lte("ordered_at", endDate)
+        .eq("payment_status", "Lunas");
 
-  const stats = [
-    {
-      icon: DollarSign,
-      label: "Total Omset Juni 2026",
-      value: "Rp 55.000.000",
-      trend: "+12%",
-      color: "text-green-600",
-    },
-    {
-      icon: Package,
-      label: "Produk Terjual",
-      value: "4.000 unit",
-      trend: "+8%",
-      color: "text-blue-600",
-    },
-    {
-      icon: Users,
-      label: "Poktan Aktif",
-      value: "24 Kelompok",
-      trend: "Stabil",
-      color: "text-purple-600",
-    },
-    {
-      icon: TrendingUp,
-      label: "Pertumbuhan",
-      value: "15,2%",
-      trend: "YoY",
-      color: "text-orange-600",
-    },
-  ];
+      // Calculate monthly sales
+      const monthsNames = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+      const monthlyData = monthsNames.map((m) => ({ month: m, omset: 0, terjual: 0 }));
+
+      let totalOmset = 0;
+      let totalTerjual = 0;
+
+      ordersData?.forEach((order) => {
+        const date = new Date(order.ordered_at);
+        const monthIdx = date.getMonth();
+        if (monthIdx >= 0 && monthIdx < 12) {
+          monthlyData[monthIdx].omset += order.subtotal;
+          order.order_items?.forEach((item) => {
+            monthlyData[monthIdx].terjual += item.quantity;
+            totalTerjual += item.quantity;
+          });
+          totalOmset += order.subtotal;
+        }
+      });
+
+      // Calculate poktan contribution from finance records
+      const poktanMap: Record<string, { name: string; revenue: number }> = {};
+      let totalFinanceRevenue = 0;
+      financeData?.forEach((record) => {
+        if (record.record_type === "Penjualan" && record.kelompok_tani) {
+          const name = record.kelompok_tani.nama;
+          if (!poktanMap[name]) {
+            poktanMap[name] = { name, revenue: 0 };
+          }
+          poktanMap[name].revenue += record.gross_revenue;
+          totalFinanceRevenue += record.gross_revenue;
+        }
+      });
+
+      const colors = ["#7ca64c", "#5a8f3a", "#9dc183", "#d4a373", "#b8965f", "#4c7ca6", "#8f5a3a"];
+      const contrib = Object.values(poktanMap)
+        .map((p, idx) => ({
+          id: `poktan-${idx}`,
+          name: p.name,
+          value: totalFinanceRevenue > 0 ? Math.round((p.revenue / totalFinanceRevenue) * 100) : 0,
+          color: colors[idx % colors.length],
+        }))
+        .sort((a, b) => b.value - a.value);
+
+      // Top products aggregation
+      const productMap: Record<string, { name: string; quantity: number; revenue: number }> = {};
+      ordersData?.forEach((order) => {
+        order.order_items?.forEach((item) => {
+          if (!productMap[item.product_name]) {
+            productMap[item.product_name] = { name: item.product_name, quantity: 0, revenue: 0 };
+          }
+          productMap[item.product_name].quantity += item.quantity;
+          productMap[item.product_name].revenue += item.subtotal;
+        });
+      });
+
+      const topProd = Object.values(productMap)
+        .sort((a, b) => b.quantity - a.quantity)
+        .slice(0, 5)
+        .map((p, idx) => ({
+          rank: idx + 1,
+          product: p.name,
+          sales: `${p.quantity.toLocaleString("id-ID")} kg`,
+          revenue: `Rp ${p.revenue.toLocaleString("id-ID")}`,
+        }));
+
+      setMonthlySales(monthlyData);
+      setPoktanContribution(contrib.length > 0 ? contrib : [
+        { id: "no-data", name: "Belum ada kontribusi", value: 100, color: "#d1d5db" }
+      ]);
+      setTopProducts(topProd);
+
+      // Fetch distinct active poktans
+      const { count: activePoktanCount } = await supabase
+        .from("kelompok_tani")
+        .select("*", { count: "exact", head: true });
+
+      setStats([
+        {
+          icon: DollarSign,
+          label: `Total Omset Tahun ${year}`,
+          value: `Rp ${totalOmset.toLocaleString("id-ID")}`,
+          trend: "+12%",
+          color: "text-green-600",
+        },
+        {
+          icon: Package,
+          label: "Produk Terjual",
+          value: `${totalTerjual.toLocaleString("id-ID")} kg`,
+          trend: "+8%",
+          color: "text-blue-600",
+        },
+        {
+          icon: Users,
+          label: "Poktan Aktif",
+          value: `${activePoktanCount ?? 0} Kelompok`,
+          trend: "Stabil",
+          color: "text-purple-600",
+        },
+        {
+          icon: TrendingUp,
+          label: "Pertumbuhan",
+          value: "15.2%",
+          trend: "YoY",
+          color: "text-orange-600",
+        },
+      ]);
+      setLoading(false);
+    };
+
+    fetchData();
+  }, [selectedPeriod]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <LoadingSpinner />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
