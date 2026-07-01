@@ -20,7 +20,23 @@ export function WebsiteContentProvider({ children }: { children: ReactNode }) {
   const [content, setContent] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
 
-  const fetchContent = async () => {
+  const CACHE_KEY = "website_content_cache";
+  const CACHE_TTL = 30 * 60 * 1000; // Cache valid untuk 30 menit
+
+  const saveToCache = (data: Record<string, string>) => {
+    try {
+      const cacheObj = {
+        data,
+        expiresAt: Date.now() + CACHE_TTL
+      };
+      localStorage.setItem(CACHE_KEY, JSON.stringify(cacheObj));
+    } catch (e) {
+      console.warn("Gagal menyimpan cache website_content:", e);
+    }
+  };
+
+  const fetchContent = async (isBackground = false) => {
+    if (!isBackground) setLoading(true);
     try {
       const { data, error } = await supabase
         .from("website_content")
@@ -36,7 +52,9 @@ export function WebsiteContentProvider({ children }: { children: ReactNode }) {
         data.forEach((item) => {
           map[item.section_key] = item.value || "";
         });
+        
         setContent(map);
+        saveToCache(map);
       }
     } catch (err) {
       console.error("Error in fetchContent:", err);
@@ -46,7 +64,31 @@ export function WebsiteContentProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    fetchContent();
+    // Memuat dari cache terlebih dahulu (Stale-While-Revalidate)
+    let hasLoadedFromCache = false;
+    try {
+      const cached = localStorage.getItem(CACHE_KEY);
+      if (cached) {
+        const { data, expiresAt } = JSON.parse(cached);
+        if (data && typeof data === "object") {
+          setContent(data);
+          setLoading(false);
+          hasLoadedFromCache = true;
+          
+          // Jika cache sudah kedaluwarsa, ambil data baru di background
+          if (Date.now() > expiresAt) {
+            fetchContent(true);
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("Gagal membaca cache website_content:", e);
+    }
+
+    // Jika tidak ada di cache, lakukan fetch normal yang memblokir loading
+    if (!hasLoadedFromCache) {
+      fetchContent(false);
+    }
   }, []);
 
   const getContent = (key: string, defaultValue = ""): string => {
@@ -59,7 +101,7 @@ export function WebsiteContentProvider({ children }: { children: ReactNode }) {
         content,
         loading,
         getContent,
-        refreshContent: fetchContent,
+        refreshContent: () => fetchContent(false),
       }}
     >
       {children}
