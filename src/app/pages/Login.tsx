@@ -162,7 +162,7 @@ export function Login() {
               <div className="w-14 h-14 rounded-full flex items-center justify-center border-2 shadow-sm overflow-hidden bg-white" style={{ borderColor: "var(--border)" }}>
                 <img src="https://upload.wikimedia.org/wikipedia/id/1/19/Logo_Gunadarma.jpg" alt="Logo Gunadarma" className="w-full h-full object-contain p-0.5" />
               </div>
-              <span className="text-xs text-center leading-tight font-medium" style={{ color: "var(--muted-foreground)" }}>Univ Gunadarma</span>
+              <span className="text-xs text-center leading-tight font-medium" style={{ color: "var(--muted-foreground)" }}>Universitas Gunadarma</span>
             </div>
 
             <div className="h-12 w-px" style={{ backgroundColor: "var(--border)" }} />

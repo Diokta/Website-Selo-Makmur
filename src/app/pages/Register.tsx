@@ -101,17 +101,9 @@ export function Register() {
           )}
           <span className="text-white text-xl font-medium">{brandName}</span>
         </div>
-        <div className="relative z-10 flex-1 flex flex-col justify-center py-12">
+         <div className="relative z-10 flex-1 flex flex-col justify-center py-12">
           <h1 className="text-4xl xl:text-5xl text-white leading-tight mb-6">Bergabung &<br />Berkembang<br />Bersama Kami</h1>
           <p className="text-white/80 text-lg leading-relaxed mb-8 max-w-xs">Daftarkan diri Anda dan mulai nikmati kemudahan belanja produk pertanian langsung dari petani.</p>
-          <div className="space-y-3">
-            {["Akses ribuan produk segar lokal", "Harga langsung dari petani", "Pengiriman cepat ke seluruh daerah", "Riwayat transaksi terkelola rapi"].map(item => (
-              <div key={item} className="flex items-center gap-3">
-                <CheckCircle2 className="w-5 h-5 text-white/80 flex-shrink-0" />
-                <span className="text-white/80 text-sm">{item}</span>
-              </div>
-            ))}
-          </div>
         </div>
         <p className="relative z-10 text-white/40 text-sm">© 2026 Gapoktan Selo Makmur</p>
       </div>
@@ -127,7 +119,7 @@ export function Register() {
               <div className="w-14 h-14 rounded-full flex items-center justify-center border-2 shadow-sm overflow-hidden bg-white" style={{ borderColor: "var(--border)" }}>
                 <img src="https://upload.wikimedia.org/wikipedia/id/1/19/Logo_Gunadarma.jpg" alt="Logo Gunadarma" className="w-full h-full object-contain p-0.5" />
               </div>
-              <span className="text-xs text-center leading-tight font-medium" style={{ color: "var(--muted-foreground)" }}>Univ Gunadarma</span>
+              <span className="text-xs text-center leading-tight font-medium" style={{ color: "var(--muted-foreground)" }}>Universitas Gunadarma</span>
             </div>
 
             <div className="h-12 w-px" style={{ backgroundColor: "var(--border)" }} />
