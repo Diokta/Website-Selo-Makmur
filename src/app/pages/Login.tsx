@@ -157,25 +157,38 @@ export function Login() {
 
           {/* 3 Logo */}
           <div className="flex items-center justify-center gap-4 sm:gap-6 mb-8">
+            {/* Logo Kiri: Universitas Gunadarma */}
             <div className="flex flex-col items-center gap-1.5">
-              <div className="w-14 h-14 rounded-full flex items-center justify-center border-2 shadow-sm" style={{ backgroundColor: "var(--secondary)", borderColor: "var(--border)" }}>
-                <Wheat className="w-7 h-7" style={{ color: "var(--primary)" }} />
+              <div className="w-14 h-14 rounded-full flex items-center justify-center border-2 shadow-sm overflow-hidden bg-white" style={{ borderColor: "var(--border)" }}>
+                <img src="https://upload.wikimedia.org/wikipedia/id/1/19/Logo_Gunadarma.jpg" alt="Logo Gunadarma" className="w-full h-full object-contain p-0.5" />
               </div>
-              <span className="text-xs text-center leading-tight" style={{ color: "var(--muted-foreground)" }}>Kementan RI</span>
+              <span className="text-xs text-center leading-tight font-medium" style={{ color: "var(--muted-foreground)" }}>Univ Gunadarma</span>
             </div>
+
             <div className="h-12 w-px" style={{ backgroundColor: "var(--border)" }} />
+
+            {/* Logo Tengah: Gapoktan Selo Makmur */}
             <div className="flex flex-col items-center gap-1.5">
-              <div className="w-20 h-20 rounded-full flex items-center justify-center shadow-lg border-2" style={{ background: "linear-gradient(135deg, var(--primary), var(--accent))", borderColor: "var(--accent)" }}>
-                <Sprout className="w-10 h-10 text-white" />
-              </div>
-              <span className="text-xs text-center leading-tight font-medium" style={{ color: "var(--primary)" }}>Gapoktan<br />Selo Makmur</span>
+              {logoUrl ? (
+                <div className="w-20 h-20 rounded-full flex items-center justify-center shadow-lg border-2 overflow-hidden bg-white" style={{ borderColor: "var(--accent)" }}>
+                  <img src={logoUrl} alt="Logo Gapoktan" className="w-full h-full object-contain p-1" />
+                </div>
+              ) : (
+                <div className="w-20 h-20 rounded-full flex items-center justify-center shadow-lg border-2" style={{ background: "linear-gradient(135deg, var(--primary), var(--accent))", borderColor: "var(--accent)" }}>
+                  <Sprout className="w-10 h-10 text-white" />
+                </div>
+              )}
+              <span className="text-xs text-center leading-tight font-semibold" style={{ color: "var(--primary)" }}>Gapoktan<br />Selo Makmur</span>
             </div>
+
             <div className="h-12 w-px" style={{ backgroundColor: "var(--border)" }} />
+
+            {/* Logo Kanan: AAMAI */}
             <div className="flex flex-col items-center gap-1.5">
-              <div className="w-14 h-14 rounded-full flex items-center justify-center border-2 shadow-sm" style={{ backgroundColor: "var(--secondary)", borderColor: "var(--border)" }}>
-                <Leaf className="w-7 h-7" style={{ color: "var(--accent)" }} />
+              <div className="w-14 h-14 rounded-full flex items-center justify-center border-2 shadow-sm overflow-hidden bg-white" style={{ borderColor: "var(--border)" }}>
+                <img src="https://aamai.or.id/web/wp-content/uploads/2019/09/logo_large@3x.png" alt="Logo AAMAI" className="w-full h-full object-contain p-1" />
               </div>
-              <span className="text-xs text-center leading-tight" style={{ color: "var(--muted-foreground)" }}>Dinas Pertanian<br />Sleman</span>
+              <span className="text-xs text-center leading-tight font-medium" style={{ color: "var(--muted-foreground)" }}>AAMAI</span>
             </div>
           </div>
 
