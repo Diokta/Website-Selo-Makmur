@@ -1,5 +1,5 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
-import { Download, TrendingUp, Package, DollarSign, Users } from "lucide-react";
+import { TrendingUp, Package, DollarSign, Users } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabase";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
@@ -161,10 +161,6 @@ export function Reports() {
                 Transparansi data dan kinerja Gapoktan
               </p>
             </div>
-            <button className="inline-flex items-center gap-2 bg-white hover:bg-white/90 text-primary px-6 py-3 rounded-lg transition-colors text-base sm:text-lg">
-              <Download className="w-5 h-5" />
-              Unduh Laporan PDF
-            </button>
           </div>
         </div>
       </div>
