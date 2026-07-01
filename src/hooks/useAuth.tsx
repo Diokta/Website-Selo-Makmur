@@ -66,6 +66,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (data) setProfile(data as UserRow);
   };
 
+  // Helper to handle sending verification email for OAuth/Google users
+  const handleUnverifiedSession = async (currUser: User) => {
+    try {
+      // 1. Cek apakah sudah ada token aktif di email_verifications
+      const { data: verData } = await supabase
+        .from("email_verifications")
+        .select("id")
+        .eq("user_id", currUser.id)
+        .is("used_at", null)
+        .limit(1);
+
+      if (verData && verData.length > 0) return;
+
+      // 2. Generate token baru
+      const token = generateUUID() + "-" + Date.now().toString(36);
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+
+      // 3. Simpan token via RPC
+      await supabase.rpc("create_verification_token", {
+        p_user_id: currUser.id,
+        p_email: currUser.email,
+        p_token: token,
+        p_expires_at: expiresAt,
+      });
+
+      // 4. Kirim email
+      const verificationUrl = `${window.location.origin}/verify-email?token=${token}`;
+      await sendVerificationEmail({
+        email: currUser.email!,
+        name: currUser.user_metadata?.full_name || currUser.user_metadata?.name || "",
+        token,
+        verificationUrl,
+      });
+    } catch (e) {
+      console.error("Error in handleUnverifiedSession:", e);
+    }
+  };
+
   useEffect(() => {
     // Cek sesi yang sudah ada
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -77,6 +115,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .eq("id", session.user.id)
           .single();
         if (prof && prof.email_verified === false) {
+          // Kirim email konfirmasi jika login lewat Google
+          if (session.user.app_metadata?.provider === "google") {
+            await handleUnverifiedSession(session.user);
+          }
           // Belum verifikasi — paksa sign out, jangan set session
           await supabase.auth.signOut();
           setLoading(false);
@@ -93,11 +135,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Dengarkan perubahan status auth
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
         if (session?.user) {
+          // Cek email_verified sebelum set user ke state
+          const { data: prof } = await supabase
+            .from("users")
+            .select("email_verified")
+            .eq("id", session.user.id)
+            .single();
+          if (prof && prof.email_verified === false) {
+            // Google OAuth: Kirim email & sign out langsung
+            if (session.user.app_metadata?.provider === "google") {
+              await handleUnverifiedSession(session.user);
+              await supabase.auth.signOut();
+              setSession(null);
+              setUser(null);
+              setProfile(null);
+              setLoading(false);
+              return;
+            }
+            // Email biasa: jangan panggil signOut langsung agar tidak race condition dengan signUp
+            // Cukup kosongkan session di React state
+            setSession(null);
+            setUser(null);
+            setProfile(null);
+            setLoading(false);
+            return;
+          }
+          setSession(session);
+          setUser(session.user);
           await fetchProfile(session.user.id);
         } else {
+          setSession(null);
+          setUser(null);
           setProfile(null);
         }
         setLoading(false);
@@ -226,17 +295,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // ── resendConfirmationEmail ───────────────────────────────
 
   const resendConfirmationEmail = async (email: string): Promise<{ error: string | null }> => {
-    // Cari user_id berdasarkan email
-    const { data: verData } = await supabase
-      .from("email_verifications")
-      .select("user_id")
+    // Cari user_id berdasarkan email dari tabel public.users
+    const { data: userData } = await supabase
+      .from("users")
+      .select("id")
       .eq("email", email)
-      .is("used_at", null)
-      .order("created_at", { ascending: false })
-      .limit(1)
       .single();
 
-    if (!verData) return { error: "Data verifikasi tidak ditemukan. Coba daftar ulang." };
+    if (!userData) return { error: "Email ini belum terdaftar di sistem." };
 
     // Hapus token lama via RPC
     await supabase.rpc("delete_unverified_tokens", { p_email: email });
@@ -245,7 +311,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const newToken = generateUUID() + "-" + Date.now().toString(36);
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
     await supabase.rpc("create_verification_token", {
-      p_user_id:    verData.user_id,
+      p_user_id:    userData.id,
       p_email:      email,
       p_token:      newToken,
       p_expires_at: expiresAt,
