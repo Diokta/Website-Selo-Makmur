@@ -1,5 +1,14 @@
-import { MapPin, Phone, Mail, Clock } from "lucide-react";
+import { MapPin, Phone, Mail } from "lucide-react";
 import { useWebsiteContent } from "../../hooks/useWebsiteContent";
+
+const getMapSrc = (input: string) => {
+  if (!input) return "";
+  if (input.includes("<iframe")) {
+    const match = input.match(/src=["']([^"']+)["']/);
+    return match ? match[1] : "";
+  }
+  return input;
+};
 
 export function ContactSection() {
   const { getContent } = useWebsiteContent();
@@ -8,6 +17,8 @@ export function ContactSection() {
   const address = getContent("identity.address", "Jl. Letda Abdul Jalil, Salakan, Selomartani, Kalasan, Sleman, Daerah Istimewa Yogyakarta 55571");
   const phone = getContent("identity.phone", "+62 251 8123456");
   const email = getContent("identity.email", "info@gapoktansukamaju.id");
+  const mapInput = getContent("identity.map", "");
+  const mapUrl = getMapSrc(mapInput);
 
   const contactInfo = [
     {
@@ -24,11 +35,6 @@ export function ContactSection() {
       icon: Mail,
       title: "Email",
       content: email,
-    },
-    {
-      icon: Clock,
-      title: "Jam Operasional",
-      content: "Senin - Jumat: 08.00 - 16.00 WIB",
     },
   ];
 
@@ -68,18 +74,32 @@ export function ContactSection() {
             ))}
           </div>
 
-          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 sm:p-6 h-64 sm:h-80 lg:h-full min-h-[300px]">
-            <div className="w-full h-full bg-white/20 rounded-lg flex items-center justify-center">
-              <div className="text-center px-4">
-                <MapPin className="w-12 h-12 sm:w-16 sm:h-16 text-white/60 mx-auto mb-3 sm:mb-4" />
-                <p className="text-base sm:text-lg text-white/80">
-                  Peta Lokasi
-                </p>
-                <p className="text-xs sm:text-sm text-white/60 mt-2">
-                  Selomartani, Kalasan, Sleman, DIY
-                </p>
+          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-2 h-64 sm:h-80 lg:h-full min-h-[300px] overflow-hidden relative">
+            {mapUrl ? (
+              <iframe
+                src={mapUrl}
+                width="100%"
+                height="100%"
+                style={{ border: 0 }}
+                allowFullScreen={true}
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                title="Peta Lokasi Home"
+                className="w-full h-full rounded-lg absolute inset-0 p-2"
+              ></iframe>
+            ) : (
+              <div className="w-full h-full bg-white/20 rounded-lg flex items-center justify-center p-4">
+                <div className="text-center px-4">
+                  <MapPin className="w-12 h-12 sm:w-16 sm:h-16 text-white/60 mx-auto mb-3 sm:mb-4" />
+                  <p className="text-base sm:text-lg text-white/80">
+                    Peta Lokasi
+                  </p>
+                  <p className="text-xs sm:text-sm text-white/60 mt-2">
+                    {address}
+                  </p>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
 

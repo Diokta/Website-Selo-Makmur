@@ -19,16 +19,10 @@ export function Reports() {
       const startDate = `${year}-01-01T00:00:00Z`;
       const endDate = `${year}-12-31T23:59:59Z`;
 
-      // 1. Fetch finance records for selected year
-      const { data: financeData } = await supabase
-        .from("finance_records")
-        .select("*, kelompok_tani(id, nama)")
-        .eq("period_year", year);
-
-      // 2. Fetch orders and order_items for selected year
+      // 1. Fetch orders and order_items for selected year
       const { data: ordersData } = await supabase
         .from("orders")
-        .select("id, ordered_at, total_amount, subtotal, order_items(quantity, product_name, subtotal)")
+        .select("id, ordered_at, total_amount, subtotal, kelompok_tani(id, nama), order_items(quantity, product_name, subtotal)")
         .gte("ordered_at", startDate)
         .lte("ordered_at", endDate)
         .eq("payment_status", "Lunas");
@@ -53,17 +47,17 @@ export function Reports() {
         }
       });
 
-      // Calculate poktan contribution from finance records
+      // Calculate poktan contribution from orders
       const poktanMap: Record<string, { name: string; revenue: number }> = {};
       let totalFinanceRevenue = 0;
-      financeData?.forEach((record) => {
-        if (record.record_type === "Penjualan" && record.kelompok_tani) {
+      ordersData?.forEach((record) => {
+        if (record.kelompok_tani) {
           const name = record.kelompok_tani.nama;
           if (!poktanMap[name]) {
             poktanMap[name] = { name, revenue: 0 };
           }
-          poktanMap[name].revenue += record.gross_revenue;
-          totalFinanceRevenue += record.gross_revenue;
+          poktanMap[name].revenue += record.subtotal;
+          totalFinanceRevenue += record.subtotal;
         }
       });
 

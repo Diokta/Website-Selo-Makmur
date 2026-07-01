@@ -6,7 +6,6 @@ import {
   Users,
   DollarSign,
   FileText,
-  Image,
   Menu,
   X,
   LogOut,
@@ -110,7 +109,6 @@ export function AdminGapoktanLayout() {
     { name: "Manajemen Pesanan", href: "/admin-gapoktan/orders", icon: ShoppingCart },
     { name: "Anggota Poktan", href: "/admin-gapoktan/users", icon: Users },
     { name: "Laporan Keuangan", href: "/admin-gapoktan/finance", icon: DollarSign },
-    { name: "Galeri & Berita", href: "/admin-gapoktan/gallery", icon: Image },
     { name: "Kelola Konten", href: "/admin-gapoktan/content", icon: FileText },
   ];
 

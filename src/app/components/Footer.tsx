@@ -2,6 +2,15 @@ import { Link } from "react-router";
 import { MapPin, Phone, Mail, Facebook, Instagram, Youtube, Sprout } from "lucide-react";
 import { useWebsiteContent } from "../../hooks/useWebsiteContent";
 
+const getMapSrc = (input: string) => {
+  if (!input) return "";
+  if (input.includes("<iframe")) {
+    const match = input.match(/src=["']([^"']+)["']/);
+    return match ? match[1] : "";
+  }
+  return input;
+};
+
 export function Footer() {
   const { getContent } = useWebsiteContent();
 
@@ -11,6 +20,8 @@ export function Footer() {
   const phone = getContent("identity.phone", "+62 251 8123456");
   const email = getContent("identity.email", "info@gapoktansukamaju.id");
   const logoUrl = getContent("identity.logo", "");
+  const mapInput = getContent("identity.map", "");
+  const mapUrl = getMapSrc(mapInput);
 
   return (
     <footer className="text-white" style={{ backgroundColor: "var(--footer-background)" }}>
@@ -68,7 +79,7 @@ export function Footer() {
 
           <div>
             <h3 className="text-lg sm:text-xl mb-4">Kontak</h3>
-            <ul className="space-y-3 text-sm sm:text-base">
+            <ul className="space-y-3 text-sm sm:text-base mb-4">
               <li className="flex gap-2 text-white/80">
                 <MapPin className="w-5 h-5 flex-shrink-0" />
                 <span>{address}</span>
@@ -82,6 +93,21 @@ export function Footer() {
                 <span>{email}</span>
               </li>
             </ul>
+            {mapUrl && (
+              <div className="h-28 rounded-lg overflow-hidden border border-white/10 relative">
+                <iframe
+                  src={mapUrl}
+                  width="100%"
+                  height="100%"
+                  style={{ border: 0 }}
+                  allowFullScreen={true}
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                  title="Peta Footer"
+                  className="w-full h-full absolute inset-0"
+                ></iframe>
+              </div>
+            )}
           </div>
         </div>
 

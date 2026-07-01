@@ -1,5 +1,22 @@
-import { MapPin, Phone, Mail, Clock, Send, MessageSquare } from "lucide-react";
+import { MapPin, Phone, Mail, Send, MessageSquare } from "lucide-react";
 import { useWebsiteContent } from "../../hooks/useWebsiteContent";
+
+const getMapSrc = (input: string) => {
+  if (!input) return "";
+  if (input.includes("<iframe")) {
+    const match = input.match(/src=["']([^"']+)["']/);
+    return match ? match[1] : "";
+  }
+  return input;
+};
+
+const getWaLink = (input: string) => {
+  if (!input) return "";
+  const firstPart = input.split("|")[0];
+  const cleanNumber = firstPart.replace(/[^\d+]/g, "");
+  const finalNumber = cleanNumber.startsWith("0") ? "62" + cleanNumber.substring(1) : cleanNumber.replace("+", "");
+  return `https://wa.me/${finalNumber}`;
+};
 
 export function Contact() {
   const { getContent } = useWebsiteContent();
@@ -7,6 +24,9 @@ export function Contact() {
   const address = getContent("identity.address", "Jl. Letda Abdul Jalil, Salakan, Selomartani, Kalasan, Sleman, Daerah Istimewa Yogyakarta 55571");
   const phone = getContent("identity.phone", "+62 251 8123456");
   const email = getContent("identity.email", "info@gapoktansukamaju.id");
+  const whatsapp = getContent("identity.whatsapp", "+62 812 3456 7890 (Penjualan) | +62 813 4567 8901 (Organisasi)");
+  const mapInput = getContent("identity.map", "");
+  const mapUrl = getMapSrc(mapInput);
 
   const contactInfo = [
     {
@@ -24,20 +44,14 @@ export function Contact() {
     {
       icon: MessageSquare,
       title: "WhatsApp Admin",
-      content: "+62 812 3456 7890 (Penjualan) | +62 813 4567 8901 (Organisasi)",
-      link: "https://wa.me/6281234567890",
+      content: whatsapp,
+      link: getWaLink(whatsapp),
     },
     {
       icon: Mail,
       title: "Email",
       content: email,
       link: `mailto:${email}`,
-    },
-    {
-      icon: Clock,
-      title: "Jam Operasional",
-      content: "Senin - Jumat: 08.00 - 16.00 WIB | Sabtu: 08.00 - 12.00 WIB",
-      link: null,
     },
   ];
 
@@ -165,22 +179,36 @@ export function Contact() {
         </div>
 
         <div className="bg-white rounded-xl overflow-hidden shadow-md">
-          <div className="h-96 sm:h-[500px] bg-secondary flex items-center justify-center">
-            <div className="text-center px-4">
-              <MapPin className="w-16 h-16 sm:w-20 sm:h-20 text-accent mx-auto mb-4" />
-              <h3 className="text-2xl sm:text-3xl text-primary mb-3">
-                Peta Lokasi
-              </h3>
-              <p className="text-base sm:text-lg text-muted-foreground mb-2">
-                Sekretariat Gapoktan Selo Makmur
-              </p>
-              <p className="text-sm sm:text-base text-muted-foreground">
-                Salakan, Selomartani, Kalasan, Sleman, Daerah Istimewa Yogyakarta
-              </p>
-              <p className="text-sm text-muted-foreground mt-4 italic">
-                (Peta Google Maps akan ditampilkan di sini)
-              </p>
-            </div>
+          <div className="h-96 sm:h-[500px] bg-secondary flex items-center justify-center relative">
+            {mapUrl ? (
+              <iframe
+                src={mapUrl}
+                width="100%"
+                height="100%"
+                style={{ border: 0 }}
+                allowFullScreen={true}
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                title="Peta Lokasi Sekretariat"
+                className="w-full h-full absolute inset-0"
+              ></iframe>
+            ) : (
+              <div className="text-center px-4">
+                <MapPin className="w-16 h-16 sm:w-20 sm:h-20 text-accent mx-auto mb-4" />
+                <h3 className="text-2xl sm:text-3xl text-primary mb-3">
+                  Peta Lokasi
+                </h3>
+                <p className="text-base sm:text-lg text-muted-foreground mb-2">
+                  Sekretariat Gapoktan Selo Makmur
+                </p>
+                <p className="text-sm sm:text-base text-muted-foreground">
+                  {address}
+                </p>
+                <p className="text-sm text-muted-foreground mt-4 italic">
+                  (Peta lokasi belum dikonfigurasi)
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
