@@ -92,34 +92,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Dengarkan perubahan status auth
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        // Abaikan event SIGNED_OUT agar tidak loop
-        if (event === "SIGNED_OUT") {
-          setSession(null);
-          setUser(null);
-          setProfile(null);
-          setLoading(false);
-          return;
-        }
+      async (_event, session) => {
+        setSession(session);
+        setUser(session?.user ?? null);
         if (session?.user) {
-          // Cek email_verified sebelum set user ke state
-          const { data: prof } = await supabase
-            .from("users")
-            .select("email_verified")
-            .eq("id", session.user.id)
-            .single();
-          if (prof && prof.email_verified === false) {
-            // Belum verifikasi — paksa sign out tanpa set state
-            await supabase.auth.signOut();
-            setLoading(false);
-            return;
-          }
-          setSession(session);
-          setUser(session.user);
           await fetchProfile(session.user.id);
         } else {
-          setSession(null);
-          setUser(null);
           setProfile(null);
         }
         setLoading(false);
@@ -198,8 +176,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.warn("Email gagal terkirim:", emailErr);
       }
 
-      // 6. Sign out agar user tidak langsung masuk
-      await supabase.auth.signOut();
+      // 6. Sign out agar user tidak langsung masuk (jika Supabase auto-login)
+      if (data.session) {
+        await supabase.auth.signOut();
+      }
 
       return { error: null };
     } catch (err: any) {
