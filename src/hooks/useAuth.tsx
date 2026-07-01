@@ -44,6 +44,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Safe UUID generator working in non-secure HTTP / older browsers / IP addresses
+  const generateUUID = () => {
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+      return crypto.randomUUID();
+    }
+    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+      const r = (Math.random() * 16) | 0;
+      const v = c === "x" ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    });
+  };
+
   // Ambil profil user dari tabel users
   const fetchProfile = async (userId: string) => {
     const { data } = await supabase
@@ -164,7 +176,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .eq("id", data.user.id);
 
       // 3. Generate token verifikasi unik
-      const token = crypto.randomUUID() + "-" + Date.now().toString(36);
+      const token = generateUUID() + "-" + Date.now().toString(36);
       const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
       // 4. Simpan token via RPC (SECURITY DEFINER — bypass RLS)
@@ -250,7 +262,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.rpc("delete_unverified_tokens", { p_email: email });
 
     // Buat token baru via RPC
-    const newToken = crypto.randomUUID() + "-" + Date.now().toString(36);
+    const newToken = generateUUID() + "-" + Date.now().toString(36);
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
     await supabase.rpc("create_verification_token", {
       p_user_id:    verData.user_id,
