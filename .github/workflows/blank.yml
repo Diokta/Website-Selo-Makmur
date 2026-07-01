@@ -1,0 +1,60 @@
+name: Deploy Website to Hostinger
+
+on:
+  push:
+    branches:
+      - main  # Trigger otomatis saat push ke branch main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout repository
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # 2. Setup Node.js dan PNPM
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install PNPM
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9  # Sesuaikan dengan versi pnpm Anda
+          run_install: false
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      # 3. Install dependencies & Build
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Build Project
+        run: pnpm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+      # 4. Deploy hasil build (folder dist) ke Hostinger via FTP
+      - name: FTP Deploy
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          local-dir: ./dist/
+          server-dir: /public_html/  # Sesuaikan lokasi subfolder jika perlu
