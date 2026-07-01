@@ -56,10 +56,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Cek sesi yang sudah ada
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session?.user) {
+        // Cek email_verified sebelum set user
+        const { data: prof } = await supabase
+          .from("users")
+          .select("email_verified")
+          .eq("id", session.user.id)
+          .single();
+        if (prof && prof.email_verified === false) {
+          // Belum verifikasi — paksa sign out, jangan set session
+          await supabase.auth.signOut();
+          setLoading(false);
+          return;
+        }
+        setSession(session);
+        setUser(session.user);
         fetchProfile(session.user.id).finally(() => setLoading(false));
       } else {
         setLoading(false);
@@ -68,12 +80,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Dengarkan perubahan status auth
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
+      async (event, session) => {
+        // Abaikan event SIGNED_OUT agar tidak loop
+        if (event === "SIGNED_OUT") {
+          setSession(null);
+          setUser(null);
+          setProfile(null);
+          setLoading(false);
+          return;
+        }
         if (session?.user) {
+          // Cek email_verified sebelum set user ke state
+          const { data: prof } = await supabase
+            .from("users")
+            .select("email_verified")
+            .eq("id", session.user.id)
+            .single();
+          if (prof && prof.email_verified === false) {
+            // Belum verifikasi — paksa sign out tanpa set state
+            await supabase.auth.signOut();
+            setLoading(false);
+            return;
+          }
+          setSession(session);
+          setUser(session.user);
           await fetchProfile(session.user.id);
         } else {
+          setSession(null);
+          setUser(null);
           setProfile(null);
         }
         setLoading(false);
@@ -124,7 +158,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!data.user) return { error: "Gagal membuat akun." };
 
       // 2. Tandai email_verified = false di public.users
-      //    (trigger handle_new_user sudah membuat row, kita update saja)
       await supabase
         .from("users")
         .update({ email_verified: false })
@@ -134,15 +167,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const token = crypto.randomUUID() + "-" + Date.now().toString(36);
       const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
-      // 4. Simpan token ke tabel email_verifications
-      const { error: tokenError } = await supabase
-        .from("email_verifications")
-        .insert({
-          user_id: data.user.id,
-          email,
-          token,
-          expires_at: expiresAt,
-        });
+      // 4. Simpan token via RPC (SECURITY DEFINER — bypass RLS)
+      const { error: tokenError } = await supabase.rpc("create_verification_token", {
+        p_user_id:   data.user.id,
+        p_email:     email,
+        p_token:     token,
+        p_expires_at: expiresAt,
+      });
       if (tokenError) {
         console.error("Gagal simpan token:", tokenError);
         return { error: "Gagal menyiapkan verifikasi email." };
@@ -153,13 +184,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { error: emailErr } = await sendVerificationEmail({ email, name, token, verificationUrl });
       if (emailErr) {
         console.warn("Email gagal terkirim:", emailErr);
-        // Tidak return error — user sudah terdaftar, bisa kirim ulang nanti
       }
 
       // 6. Sign out agar user tidak langsung masuk
-      if (data.session) {
-        await supabase.auth.signOut();
-      }
+      await supabase.auth.signOut();
 
       return { error: null };
     } catch (err: any) {
@@ -206,9 +234,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // ── resendConfirmationEmail ───────────────────────────────
 
   const resendConfirmationEmail = async (email: string): Promise<{ error: string | null }> => {
+    // Cari user_id berdasarkan email
     const { data: verData } = await supabase
       .from("email_verifications")
-      .select("user_id, token")
+      .select("user_id")
       .eq("email", email)
       .is("used_at", null)
       .order("created_at", { ascending: false })
@@ -217,15 +246,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (!verData) return { error: "Data verifikasi tidak ditemukan. Coba daftar ulang." };
 
+    // Hapus token lama via RPC
+    await supabase.rpc("delete_unverified_tokens", { p_email: email });
+
+    // Buat token baru via RPC
     const newToken = crypto.randomUUID() + "-" + Date.now().toString(36);
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-
-    await supabase.from("email_verifications").delete().eq("email", email).is("used_at", null);
-    await supabase.from("email_verifications").insert({
-      user_id: verData.user_id,
-      email,
-      token: newToken,
-      expires_at: expiresAt,
+    await supabase.rpc("create_verification_token", {
+      p_user_id:    verData.user_id,
+      p_email:      email,
+      p_token:      newToken,
+      p_expires_at: expiresAt,
     });
 
     const verificationUrl = `${window.location.origin}/verify-email?token=${newToken}`;
