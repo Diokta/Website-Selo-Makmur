@@ -263,13 +263,6 @@ export function Header() {
                   <User className="w-5 h-5" />
                   Masuk / Daftar
                 </Link>
-                <div className="mt-2 pt-2 border-t border-border">
-                  <p className="text-xs text-muted-foreground px-4 py-2">Area Admin</p>
-                  <Link to="/admin-gapoktan" onClick={() => setIsMenuOpen(false)}
-                    className="block py-3 px-4 text-sm text-secondary hover:bg-muted rounded-lg transition-colors">
-                    Admin Gapoktan
-                  </Link>
-                </div>
               </>
             )}
           </nav>
