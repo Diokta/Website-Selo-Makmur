@@ -40,3 +40,4 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           local-dir: ./dist/
           server-dir: ./  # Sesuaikan lokasi subfolder jika perlu
+          protocol: ftps
