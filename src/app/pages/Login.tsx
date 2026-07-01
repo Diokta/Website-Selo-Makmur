@@ -40,6 +40,8 @@ export function Login() {
     if (authError) {
       if (authError.includes("Invalid login credentials")) {
         setError("Email atau password salah. Periksa kembali dan coba lagi.");
+      } else if (authError.toLowerCase().includes("email not confirmed")) {
+        setError("Email Anda belum dikonfirmasi. Silakan periksa kotak masuk (inbox/spam) email Anda dan klik tautan verifikasi terlebih dahulu.");
       } else {
         setError(authError);
       }
