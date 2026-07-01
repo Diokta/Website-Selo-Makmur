@@ -41,7 +41,7 @@ jobs:
 
       # 3. Install dependencies & Build
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
+        run: rm -rf node_modules && pnpm install --no-frozen-lockfile
 
       - name: Build Project
         run: pnpm run build
