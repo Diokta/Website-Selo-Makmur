@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router";
 import { Eye, EyeOff, Sprout, LogIn, Wheat, ShieldCheck, Leaf } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
@@ -9,7 +9,12 @@ export function Login() {
   const brandName = getContent("identity.name", "Gapoktan Selo Makmur");
   const logoUrl = getContent("identity.logo", "");
   const navigate = useNavigate();
-  const { signIn, signInWithGoogle } = useAuth();
+  const { signIn, signInWithGoogle, signOut } = useAuth();
+
+  useEffect(() => {
+    // Bersihkan sesi lama saat masuk ke halaman login untuk menghindari sisa data cache
+    signOut();
+  }, []);
 
   const handleGoogleLogin = async () => {
     setIsLoading(true);
