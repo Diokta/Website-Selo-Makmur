@@ -1,3 +1,4 @@
+import { Link } from "react-router";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { Calendar, User, Tag, Search } from "lucide-react";
 import { useState, useEffect } from "react";
@@ -108,7 +109,7 @@ export function News() {
                 key={article.id}
                 className="bg-white rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-shadow border border-border"
               >
-                <div className="relative h-48 sm:h-52 overflow-hidden">
+                <Link to={`/news/${article.id}`} className="relative h-48 sm:h-52 overflow-hidden block">
                   <ImageWithFallback
                     src={articleImage}
                     alt={article.title}
@@ -119,7 +120,7 @@ export function News() {
                       {article.category}
                     </span>
                   </div>
-                </div>
+                </Link>
                 <div className="p-4 sm:p-5">
                   <div className="flex flex-wrap gap-3 mb-3 text-xs sm:text-sm text-muted-foreground">
                     <div className="flex items-center gap-1">
@@ -131,15 +132,17 @@ export function News() {
                       <span>{article.author}</span>
                     </div>
                   </div>
-                  <h3 className="text-lg sm:text-xl text-primary font-bold mb-3 line-clamp-2">
-                    {article.title}
-                  </h3>
+                  <Link to={`/news/${article.id}`} className="group block">
+                    <h3 className="text-lg sm:text-xl text-primary font-bold mb-3 line-clamp-2 group-hover:text-accent transition-colors">
+                      {article.title}
+                    </h3>
+                  </Link>
                   <p className="text-sm sm:text-base text-muted-foreground mb-4 line-clamp-3">
                     {article.description}
                   </p>
-                  <button className="text-accent hover:text-accent/80 font-semibold transition-colors text-sm sm:text-base">
+                  <Link to={`/news/${article.id}`} className="text-accent hover:text-accent/80 font-semibold transition-colors text-sm sm:text-base inline-flex items-center gap-1">
                     Baca Selengkapnya →
-                  </button>
+                  </Link>
                 </div>
               </article>
             );

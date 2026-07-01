@@ -1,8 +1,12 @@
 import { Link } from "react-router";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { Calendar, ArrowRight } from "lucide-react";
+import Slider from "react-slick";
+import "slick-carousel/slick/slick.css";
+import "slick-carousel/slick/slick-theme.css";
 import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabase";
+import { LoadingSpinner } from "./ui/LoadingSpinner";
 
 export function NewsSection() {
   const [newsList, setNewsList] = useState<any[]>([]);
@@ -16,7 +20,7 @@ export function NewsSection() {
           .select("*, gallery_images(*)")
           .eq("is_published", true)
           .order("published_at", { ascending: false })
-          .limit(3);
+          .limit(10);
         
         setNewsList(data ?? []);
       } catch (err) {
@@ -28,6 +32,44 @@ export function NewsSection() {
     };
     fetchLatestNews();
   }, []);
+
+  const settings = {
+    dots: true,
+    infinite: newsList.length > 3,
+    speed: 500,
+    slidesToShow: Math.min(3, newsList.length),
+    slidesToScroll: 1,
+    autoplay: newsList.length > 1,
+    autoplaySpeed: 3000,
+    responsive: [
+      {
+        breakpoint: 1024,
+        settings: {
+          slidesToShow: Math.min(2, newsList.length),
+          slidesToScroll: 1,
+          infinite: newsList.length > 2,
+        },
+      },
+      {
+        breakpoint: 640,
+        settings: {
+          slidesToShow: 1,
+          slidesToScroll: 1,
+          infinite: newsList.length > 1,
+        },
+      },
+    ],
+  };
+
+  if (loading) {
+    return (
+      <section className="py-12 sm:py-16 lg:py-20 bg-white">
+        <div className="flex items-center justify-center min-h-[300px]">
+          <LoadingSpinner message="Memuat berita & kegiatan..." />
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="py-12 sm:py-16 lg:py-20 bg-white">
@@ -48,48 +90,53 @@ export function NewsSection() {
             <p className="text-sm text-muted-foreground mt-1">Kunjungi halaman ini secara berkala untuk mendapatkan update terbaru seputar kegiatan kami.</p>
           </div>
         ) : (
-          <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 mb-8 mx-auto ${
+          <div className={`news-carousel mb-8 mx-auto ${
             newsList.length === 1 ? "max-w-md" : 
             newsList.length === 2 ? "max-w-4xl" : "max-w-7xl"
           }`}>
-            {newsList.map((item) => {
-              const articleImage = item.gallery_images?.[0]?.image_url || item.image_url || item.image || "https://images.unsplash.com/photo-1673746759526-375ad76cb399?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=400";
-              const articleDate = item.published_at ? new Date(item.published_at).toLocaleDateString("id-ID") : item.date || "-";
-              const excerpt = item.description || item.excerpt || "";
+            <Slider {...settings}>
+              {newsList.map((item) => {
+                const articleImage = item.gallery_images?.[0]?.image_url || item.image_url || item.image || "https://images.unsplash.com/photo-1673746759526-375ad76cb399?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=400";
+                const articleDate = item.published_at ? new Date(item.published_at).toLocaleDateString("id-ID") : item.date || "-";
+                const excerpt = item.description || item.excerpt || "";
 
-              return (
-                <article
-                  key={item.id}
-                  className="bg-white rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-shadow border border-border/30 max-w-md mx-auto w-full flex flex-col h-[420px] sm:h-[480px]"
-                >
-                  <div className="relative h-48 sm:h-56 overflow-hidden flex-shrink-0">
-                    <ImageWithFallback
-                      src={articleImage}
-                      alt={item.title}
-                      className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                    />
-                  </div>
-                  <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between">
-                    <div>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
-                        <Calendar className="w-4 h-4" />
-                        <span>{articleDate}</span>
+                return (
+                  <div key={item.id} className="px-2 sm:px-3 pb-4">
+                    <article
+                      className="bg-white rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-shadow border border-border/30 max-w-md mx-auto w-full flex flex-col h-[420px] sm:h-[480px]"
+                    >
+                      <Link to={`/news/${item.id}`} className="relative h-48 sm:h-56 overflow-hidden flex-shrink-0 block">
+                        <ImageWithFallback
+                          src={articleImage}
+                          alt={item.title}
+                          className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                        />
+                      </Link>
+                      <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between">
+                        <div>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+                            <Calendar className="w-4 h-4" />
+                            <span>{articleDate}</span>
+                          </div>
+                          <Link to={`/news/${item.id}`} className="group block">
+                            <h3 className="text-base sm:text-lg text-primary font-bold mb-2 line-clamp-2 group-hover:text-accent transition-colors">
+                              {item.title}
+                            </h3>
+                          </Link>
+                          <p className="text-xs sm:text-sm text-muted-foreground mb-3 line-clamp-2 sm:line-clamp-3">
+                            {excerpt}
+                          </p>
+                        </div>
+                        <Link to={`/news/${item.id}`} className="text-accent hover:text-accent/80 flex items-center gap-2 transition-colors text-xs sm:text-sm font-semibold mt-auto">
+                          Baca Selengkapnya
+                          <ArrowRight className="w-4 h-4" />
+                        </Link>
                       </div>
-                      <h3 className="text-base sm:text-lg text-primary font-bold mb-2 line-clamp-2">
-                        {item.title}
-                      </h3>
-                      <p className="text-xs sm:text-sm text-muted-foreground mb-3 line-clamp-2 sm:line-clamp-3">
-                        {excerpt}
-                      </p>
-                    </div>
-                    <Link to="/news" className="text-accent hover:text-accent/80 flex items-center gap-2 transition-colors text-xs sm:text-sm font-semibold mt-auto">
-                      Baca Selengkapnya
-                      <ArrowRight className="w-4 h-4" />
-                    </Link>
+                    </article>
                   </div>
-                </article>
-              );
-            })}
+                );
+              })}
+            </Slider>
           </div>
         )}
 
