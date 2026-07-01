@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router";
-import { Eye, EyeOff, Sprout, LogIn, Wheat, ShieldCheck, Leaf } from "lucide-react";
+import { Eye, EyeOff, Sprout, LogIn, Wheat, ShieldCheck, Leaf, Mail, RefreshCw } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import { useWebsiteContent } from "../../hooks/useWebsiteContent";
 
@@ -9,7 +9,13 @@ export function Login() {
   const brandName = getContent("identity.name", "Gapoktan Selo Makmur");
   const logoUrl = getContent("identity.logo", "");
   const navigate = useNavigate();
-  const { signIn, signInWithGoogle, signOut } = useAuth();
+  const { signIn, signInWithGoogle, signOut, resendConfirmationEmail } = useAuth();
+
+  // State untuk panel "email belum dikonfirmasi"
+  const [unconfirmedEmail, setUnconfirmedEmail] = useState("");
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendSuccess, setResendSuccess] = useState(false);
+  const [resendError, setResendError] = useState("");
 
   useEffect(() => {
     // Bersihkan sesi lama saat masuk ke halaman login untuk menghindari sisa data cache
@@ -39,14 +45,15 @@ export function Login() {
     if (password.length < 6) { setError("Password minimal 6 karakter."); return; }
 
     setIsLoading(true);
-    const { error: authError } = await signIn(email, password);
+    const { error: authError, emailNotVerified } = await signIn(email, password);
     setIsLoading(false);
 
     if (authError) {
       if (authError.includes("Invalid login credentials")) {
         setError("Email atau password salah. Periksa kembali dan coba lagi.");
-      } else if (authError.toLowerCase().includes("email not confirmed")) {
-        setError("Email Anda belum dikonfirmasi. Silakan periksa kotak masuk (inbox/spam) email Anda dan klik tautan verifikasi terlebih dahulu.");
+      } else if (emailNotVerified || authError === "email_not_verified") {
+        setUnconfirmedEmail(email);
+        setError("email_not_confirmed");
       } else {
         setError(authError);
       }
@@ -70,6 +77,24 @@ export function Login() {
   const inputBlur = (e: React.FocusEvent<HTMLInputElement>) => {
     e.target.style.borderColor = "var(--border)";
     e.target.style.boxShadow = "none";
+  };
+
+  const handleResendEmail = async () => {
+    if (!unconfirmedEmail) return;
+    setResendLoading(true);
+    setResendError("");
+    setResendSuccess(false);
+    const { error } = await resendConfirmationEmail(unconfirmedEmail);
+    setResendLoading(false);
+    if (error) {
+      if (error.toLowerCase().includes("rate limit")) {
+        setResendError("Batas pengiriman email tercapai. Tunggu beberapa menit lalu coba lagi.");
+      } else {
+        setResendError(error);
+      }
+    } else {
+      setResendSuccess(true);
+    }
   };
 
   return (
@@ -187,10 +212,61 @@ export function Login() {
               </div>
             </div>
 
-            {error && (
+            {error && error !== "email_not_confirmed" && (
               <div className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm"
                 style={{ backgroundColor: "rgba(211,47,47,0.08)", color: "var(--destructive)", border: "1px solid rgba(211,47,47,0.2)" }}>
                 <span>⚠</span> {error}
+              </div>
+            )}
+
+            {/* Panel email belum dikonfirmasi */}
+            {error === "email_not_confirmed" && (
+              <div className="rounded-2xl p-5 space-y-4" style={{ backgroundColor: "rgba(124,166,76,0.06)", border: "1px solid rgba(124,166,76,0.25)" }}>
+                <div className="flex items-start gap-3">
+                  <div className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: "rgba(124,166,76,0.15)" }}>
+                    <Mail className="w-5 h-5" style={{ color: "var(--accent)" }} />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-sm mb-1" style={{ color: "var(--primary)" }}>Email belum dikonfirmasi</p>
+                    <p className="text-xs leading-relaxed" style={{ color: "var(--muted-foreground)" }}>
+                      Kami telah mengirimkan link konfirmasi ke <strong className="text-foreground">{unconfirmedEmail}</strong>. Buka email Anda dan klik tautan tersebut untuk mengaktifkan akun.
+                    </p>
+                  </div>
+                </div>
+                <div className="text-xs p-3 rounded-xl" style={{ backgroundColor: "var(--secondary)", color: "var(--muted-foreground)" }}>
+                  <p className="font-medium mb-1" style={{ color: "var(--foreground)" }}>Tidak menemukan email?</p>
+                  <ul className="list-disc pl-4 space-y-0.5">
+                    <li>Periksa folder <strong>Spam</strong> atau <strong>Promosi</strong></li>
+                    <li>Pastikan alamat email yang didaftarkan sudah benar</li>
+                    <li>Klik tombol di bawah untuk kirim ulang</li>
+                  </ul>
+                </div>
+                {resendSuccess && (
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs" style={{ backgroundColor: "rgba(34,197,94,0.1)", color: "#16a34a", border: "1px solid rgba(34,197,94,0.25)" }}>
+                    <span>✓</span> Email konfirmasi berhasil dikirim ulang! Periksa inbox Anda.
+                  </div>
+                )}
+                {resendError && (
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs" style={{ backgroundColor: "rgba(211,47,47,0.08)", color: "var(--destructive)", border: "1px solid rgba(211,47,47,0.2)" }}>
+                    <span>⚠</span> {resendError}
+                  </div>
+                )}
+                <button
+                  type="button"
+                  id="resend-confirmation-btn"
+                  onClick={handleResendEmail}
+                  disabled={resendLoading || resendSuccess}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+                  style={{ backgroundColor: "var(--accent)", color: "white" }}
+                >
+                  {resendLoading ? (
+                    <><svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>Mengirim...</>
+                  ) : resendSuccess ? (
+                    <>✓ Email Terkirim</>
+                  ) : (
+                    <><RefreshCw className="w-4 h-4" />Kirim Ulang Email Konfirmasi</>
+                  )}
+                </button>
               </div>
             )}
 

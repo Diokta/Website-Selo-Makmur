@@ -17,10 +17,12 @@ interface AuthContextValue {
   role: UserRole | null;
   session: Session | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: string | null }>;
+  signIn: (email: string, password: string) => Promise<{ error: string | null; emailNotVerified?: boolean }>;
   signUp: (data: SignUpData) => Promise<{ error: string | null }>;
   signInWithGoogle: () => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
+  resendConfirmationEmail: (email: string) => Promise<{ error: string | null }>;
+  verifyEmailToken: (token: string) => Promise<{ error: string | null }>;
 }
 
 interface SignUpData {
@@ -83,9 +85,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // ── signIn ────────────────────────────────────────────────
 
-  const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) return { error: error.message };
+  const signIn = async (email: string, password: string): Promise<{ error: string | null; emailNotVerified?: boolean }> => {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      // Cek error email not confirmed dari Supabase (jika Supabase confirm email aktif)
+      if (error.message.toLowerCase().includes("email not confirmed")) {
+        return { error: "email_not_verified", emailNotVerified: true };
+      }
+      return { error: error.message };
+    }
+    // Cek email_verified di tabel public.users kita sendiri
+    if (data.user) {
+      const { data: profile } = await supabase
+        .from("users")
+        .select("email_verified")
+        .eq("id", data.user.id)
+        .single();
+      if (profile && profile.email_verified === false) {
+        // Sign out paksa — user belum verifikasi email
+        await supabase.auth.signOut();
+        return { error: "email_not_verified", emailNotVerified: true };
+      }
+    }
     return { error: null };
   };
 
@@ -93,26 +114,156 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUp = async ({ name, email, phone, password }: SignUpData) => {
     try {
-      // 1. Daftarkan ke Supabase Auth dengan metadata nama & telepon
+      // 1. Daftarkan ke Supabase Auth
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: {
-          emailRedirectTo: window.location.origin + "/login",
-          data: {
-            name,
-            phone,
-          },
-        },
+        options: { data: { name, phone } },
       });
       if (error) return { error: error.message };
       if (!data.user) return { error: "Gagal membuat akun." };
 
+      // 2. Tandai email_verified = false di public.users
+      //    (trigger handle_new_user sudah membuat row, kita update saja)
+      await supabase
+        .from("users")
+        .update({ email_verified: false })
+        .eq("id", data.user.id);
+
+      // 3. Generate token verifikasi unik
+      const token = crypto.randomUUID() + "-" + Date.now().toString(36);
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+
+      // 4. Simpan token ke tabel email_verifications
+      const { error: tokenError } = await supabase
+        .from("email_verifications")
+        .insert({
+          user_id: data.user.id,
+          email,
+          token,
+          expires_at: expiresAt,
+        });
+      if (tokenError) {
+        console.error("Gagal simpan token:", tokenError);
+        return { error: "Gagal menyiapkan verifikasi email." };
+      }
+
+      // 5. Kirim email via Edge Function
+      const verificationUrl = `${window.location.origin}/verify-email?token=${token}`;
+      const { error: emailErr } = await sendVerificationEmail({ email, name, token, verificationUrl });
+      if (emailErr) {
+        console.warn("Email gagal terkirim:", emailErr);
+        // Tidak return error — user sudah terdaftar, bisa kirim ulang nanti
+      }
+
+      // 6. Sign out agar user tidak langsung masuk
+      if (data.session) {
+        await supabase.auth.signOut();
+      }
+
       return { error: null };
     } catch (err: any) {
       console.error("signUp runtime error:", err);
-      return { error: err?.message || JSON.stringify(err) || "Terjadi kesalahan sistem saat mendaftar." };
+      return { error: err?.message || "Terjadi kesalahan sistem saat mendaftar." };
     }
+  };
+
+  // ── sendVerificationEmail (panggil Edge Function) ─────────
+
+  const sendVerificationEmail = async ({
+    email,
+    name,
+    token,
+    verificationUrl,
+  }: {
+    email: string;
+    name: string;
+    token: string;
+    verificationUrl: string;
+  }): Promise<{ error: string | null }> => {
+    try {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+      const res = await fetch(
+        `${supabaseUrl}/functions/v1/send-verification-email`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${supabaseKey}`,
+          },
+          body: JSON.stringify({ email, name, token, verificationUrl }),
+        }
+      );
+      const json = await res.json();
+      if (!res.ok) return { error: json.error || "Gagal kirim email" };
+      return { error: null };
+    } catch (err: any) {
+      return { error: err?.message || "Gagal terhubung ke layanan email" };
+    }
+  };
+
+  // ── resendConfirmationEmail ───────────────────────────────
+
+  const resendConfirmationEmail = async (email: string): Promise<{ error: string | null }> => {
+    const { data: verData } = await supabase
+      .from("email_verifications")
+      .select("user_id, token")
+      .eq("email", email)
+      .is("used_at", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .single();
+
+    if (!verData) return { error: "Data verifikasi tidak ditemukan. Coba daftar ulang." };
+
+    const newToken = crypto.randomUUID() + "-" + Date.now().toString(36);
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+
+    await supabase.from("email_verifications").delete().eq("email", email).is("used_at", null);
+    await supabase.from("email_verifications").insert({
+      user_id: verData.user_id,
+      email,
+      token: newToken,
+      expires_at: expiresAt,
+    });
+
+    const verificationUrl = `${window.location.origin}/verify-email?token=${newToken}`;
+    return sendVerificationEmail({ email, name: "", token: newToken, verificationUrl });
+  };
+
+  // ── verifyEmailToken ──────────────────────────────────────
+
+  const verifyEmailToken = async (token: string): Promise<{ error: string | null }> => {
+    const { data: verData, error: findErr } = await supabase
+      .from("email_verifications")
+      .select("*")
+      .eq("token", token)
+      .single();
+
+    if (findErr || !verData) return { error: "Token tidak valid atau sudah kedaluwarsa." };
+    if (verData.used_at) return { error: "Token ini sudah pernah digunakan." };
+    if (new Date(verData.expires_at) < new Date()) {
+      return { error: "Token sudah kedaluwarsa (lebih dari 24 jam). Silakan minta kirim ulang." };
+    }
+
+    // Tandai token sebagai sudah digunakan
+    await supabase
+      .from("email_verifications")
+      .update({ used_at: new Date().toISOString() })
+      .eq("token", token);
+
+    // Update email_verified = true via RPC (bypass RLS karena user belum login)
+    const { error: updateErr } = await supabase.rpc("verify_user_email", {
+      p_user_id: verData.user_id,
+    });
+
+    if (updateErr) {
+      console.error("Update email_verified error:", updateErr);
+      return { error: "Gagal memverifikasi akun. Hubungi admin." };
+    }
+
+    return { error: null };
   };
 
   // ── signInWithGoogle ──────────────────────────────────────
@@ -149,6 +300,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signUp,
         signInWithGoogle,
         signOut,
+        resendConfirmationEmail,
+        verifyEmailToken,
       }}
     >
       {children}

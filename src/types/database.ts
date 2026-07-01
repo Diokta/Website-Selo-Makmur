@@ -22,8 +22,19 @@ export interface UserRow {
   address: string | null;
   role: UserRole;
   password_hash: string;
+  email_verified: boolean;
   created_at: string;
   updated_at: string | null;
+}
+
+export interface EmailVerificationRow {
+  id: string;
+  user_id: string;
+  email: string;
+  token: string;
+  expires_at: string;
+  used_at: string | null;
+  created_at: string;
 }
 
 export interface KelompokTaniRow {
@@ -224,6 +235,11 @@ export type Database = {
       banners: { Row: BannerRow; Insert: Omit<BannerRow, "id" | "created_at">; Update: Partial<Omit<BannerRow, "id" | "created_at">> };
       cart_items: { Row: CartItemRow; Insert: CartItemInsert; Update: Partial<CartItemInsert> };
       gapoktan_assets: { Row: GapoktanAssetRow; Insert: GapoktanAssetInsert; Update: Partial<GapoktanAssetInsert> };
+      email_verifications: {
+        Row: EmailVerificationRow;
+        Insert: Omit<EmailVerificationRow, "id" | "created_at" | "used_at">;
+        Update: Partial<Pick<EmailVerificationRow, "used_at">>;
+      };
     };
   };
 };
