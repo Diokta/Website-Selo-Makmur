@@ -11,6 +11,7 @@ import { Profile } from "./pages/Profile";
 import { Addresses } from "./pages/Addresses";
 import { OrderDetail } from "./pages/OrderDetail";
 import { News } from "./pages/News";
+import { NewsDetail } from "./pages/NewsDetail";
 import { Reports } from "./pages/Reports";
 import { Contact } from "./pages/Contact";
 import { NotFound } from "./pages/NotFound";
@@ -48,6 +49,7 @@ export const router = createBrowserRouter([
       { path: "addresses", Component: Addresses },
       { path: "order/:id", Component: OrderDetail },
       { path: "news", Component: News },
+      { path: "news/:id", Component: NewsDetail },
       { path: "reports", Component: Reports },
       { path: "contact", Component: Contact },
       { path: "*", Component: NotFound },

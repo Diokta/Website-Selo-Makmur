@@ -50,12 +50,17 @@ export function GapoktanFinance() {
       const year = parseInt(yearStr) || new Date().getFullYear();
       const month = parseInt(monthStr) || new Date().getMonth() + 1;
 
-      // 1. Fetch current month's finance records (filtered by poktan if selected)
+      // Calculate start and end ISO strings for the month (local midnight to end of day)
+      const startOfMonth = new Date(year, month - 1, 1, 0, 0, 0, 0).toISOString();
+      const endOfMonth = new Date(year, month, 0, 23, 59, 59, 999).toISOString();
+
+      // 1. Fetch current month's orders (filtered by poktan if selected)
       let query = supabase
-        .from("finance_records")
+        .from("orders")
         .select("*, kelompok_tani(id, nama)")
-        .eq("period_year", year)
-        .eq("period_month", month);
+        .eq("payment_status", "Lunas")
+        .gte("ordered_at", startOfMonth)
+        .lte("ordered_at", endOfMonth);
 
       if (selectedPoktan) {
         query = query.eq("poktan_id", selectedPoktan);
@@ -69,11 +74,9 @@ export function GapoktanFinance() {
       let poktanShare = 0;
 
       monthRecords?.forEach((r) => {
-        if (r.record_type === "Penjualan") {
-          totalRevenue += r.gross_revenue;
-          gapoktanFee += r.gapoktan_fee_amount;
-          poktanShare += r.poktan_share_amount;
-        }
+        totalRevenue += r.subtotal;
+        gapoktanFee += r.subtotal * 0.05;
+        poktanShare += r.subtotal * 0.95;
       });
 
       setSummary({
@@ -84,10 +87,15 @@ export function GapoktanFinance() {
       });
 
       // 2. Fetch full year's data for the trend chart (monthly aggregate)
+      const startOfYear = new Date(year, 0, 1, 0, 0, 0, 0).toISOString();
+      const endOfYear = new Date(year, 11, 31, 23, 59, 59, 999).toISOString();
+
       let yearQuery = supabase
-        .from("finance_records")
+        .from("orders")
         .select("*")
-        .eq("period_year", year);
+        .eq("payment_status", "Lunas")
+        .gte("ordered_at", startOfYear)
+        .lte("ordered_at", endOfYear);
 
       if (selectedPoktan) {
         yearQuery = yearQuery.eq("poktan_id", selectedPoktan);
@@ -102,10 +110,11 @@ export function GapoktanFinance() {
         let monthShare = 0;
 
         yearRecords?.forEach((r) => {
-          if (r.period_month === idx + 1 && r.record_type === "Penjualan") {
-            monthTotal += r.gross_revenue;
-            monthFee += r.gapoktan_fee_amount;
-            monthShare += r.poktan_share_amount;
+          const ordDate = new Date(r.ordered_at);
+          if (ordDate.getMonth() === idx) {
+            monthTotal += r.subtotal;
+            monthFee += r.subtotal * 0.05;
+            monthShare += r.subtotal * 0.95;
           }
         });
 
@@ -123,15 +132,14 @@ export function GapoktanFinance() {
       const poktanMap: Record<string, { name: string; revenue: number }> = {};
       let totalMonthlyRevenue = 0;
 
-      // If we filtered by a specific poktan, we show only that poktan's distribution, otherwise show all
       monthRecords?.forEach((r) => {
-        if (r.record_type === "Penjualan" && r.kelompok_tani) {
+        if (r.kelompok_tani) {
           const name = r.kelompok_tani.nama;
           if (!poktanMap[name]) {
             poktanMap[name] = { name, revenue: 0 };
           }
-          poktanMap[name].revenue += r.gross_revenue;
-          totalMonthlyRevenue += r.gross_revenue;
+          poktanMap[name].revenue += r.subtotal;
+          totalMonthlyRevenue += r.subtotal;
         }
       });
 

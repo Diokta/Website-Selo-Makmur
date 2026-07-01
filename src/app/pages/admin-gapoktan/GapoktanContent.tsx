@@ -34,8 +34,40 @@ export function GapoktanContent() {
   const [beritaList, setBeritaList] = useState<any[]>([]);
   const [beritaMode, setBeritaMode] = useState<"list" | "add" | "edit">("list");
   const [editBeritaId, setEditBeritaId] = useState<string | null>(null);
-  const [beritaForm, setBeritaForm] = useState({ title: "", description: "", content: "", category: "Berita", is_published: true });
+  const [beritaForm, setBeritaForm] = useState({ title: "", description: "", content: "", category: "Berita", is_published: true, image_url: "" });
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+
+  const handleNewsImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingImage(true);
+    try {
+      const fileExt = file.name.split(".").pop();
+      const fileName = `news-${Date.now()}.${fileExt}`;
+      const filePath = `news/${fileName}`;
+      const { error: uploadError } = await supabase.storage
+        .from("gallery-images")
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage
+        .from("gallery-images")
+        .getPublicUrl(filePath);
+
+      setBeritaForm((prev) => ({ ...prev, image_url: data.publicUrl }));
+    } catch (err) {
+      console.warn("Storage upload failed, falling back to base64 encoding:", err);
+      const reader = new FileReader();
+      reader.onload = () => {
+        setBeritaForm((prev) => ({ ...prev, image_url: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
+    } finally {
+      setUploadingImage(false);
+    }
+  };
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -91,7 +123,7 @@ export function GapoktanContent() {
       // 2. Fetch news (where type = 'Berita')
       const { data: newsData } = await supabase
         .from("news_gallery")
-        .select("*")
+        .select("*, gallery_images(*)")
         .eq("type", "Berita")
         .order("created_at", { ascending: false });
 
@@ -167,26 +199,47 @@ export function GapoktanContent() {
         updated_at: new Date().toISOString(),
       };
 
+      let beritaId = editBeritaId;
+
       if (editBeritaId) {
         const { error } = await supabase
           .from("news_gallery")
           .update(payload)
           .eq("id", editBeritaId);
         if (error) throw error;
+
+        // Delete old gallery images for this news
+        await supabase.from("gallery_images").delete().eq("news_gallery_id", editBeritaId);
       } else {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from("news_gallery")
           .insert({
             ...payload,
             author: "Admin Gapoktan",
             created_at: new Date().toISOString(),
-          });
+          })
+          .select()
+          .single();
         if (error) throw error;
+        beritaId = data.id;
+      }
+
+      // Insert new headline image into gallery_images
+      if (beritaId && beritaForm.image_url) {
+        const { error: imgError } = await supabase
+          .from("gallery_images")
+          .insert({
+            news_gallery_id: beritaId,
+            image_url: beritaForm.image_url,
+            caption: beritaForm.title,
+            sort_order: 0,
+          });
+        if (imgError) throw imgError;
       }
 
       setBeritaMode("list");
       setEditBeritaId(null);
-      setBeritaForm({ title: "", description: "", content: "", category: "Berita", is_published: true });
+      setBeritaForm({ title: "", description: "", content: "", category: "Berita", is_published: true, image_url: "" });
       fetchContentAndNews();
     } catch (err) {
       console.error("Error saving news:", err);
@@ -203,6 +256,7 @@ export function GapoktanContent() {
       content: b.content || "",
       category: b.category || "Berita",
       is_published: b.is_published,
+      image_url: b.gallery_images?.[0]?.image_url || "",
     });
     setBeritaMode("edit");
   };
@@ -328,6 +382,16 @@ export function GapoktanContent() {
                     className={inputCls}
                   />
                 </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-sm mb-2 text-foreground font-semibold font-sans">WhatsApp Admin</label>
+                  <input
+                    type="text"
+                    placeholder="Contoh: +62 812-3456-7890 (Penjualan) | +62 813-4567-8901 (Organisasi)"
+                    value={contentMap["identity.whatsapp"] || ""}
+                    onChange={(e) => setContentMap({ ...contentMap, "identity.whatsapp": e.target.value })}
+                    className={inputCls}
+                  />
+                </div>
                 <div className="sm:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4 items-end border-t border-secondary/10 pt-4 mt-2">
                   <div className="md:col-span-2">
                     <label className="block text-sm mb-2 text-foreground font-semibold">Logo Gapoktan (URL)</label>
@@ -371,10 +435,23 @@ export function GapoktanContent() {
                       </button>
                     </div>
                   )}
+                  <div className="sm:col-span-3 border-t border-secondary/10 pt-4 mt-2">
+                    <label className="block text-sm mb-2 text-foreground font-semibold">Peta Google Maps (Embed URL atau Iframe Code)</label>
+                    <textarea
+                      rows={3}
+                      placeholder="Masukkan kode HTML iframe (contoh: <iframe src=...>) atau langsung masukkan URL sematannya saja"
+                      value={contentMap["identity.map"] || ""}
+                      onChange={(e) => setContentMap({ ...contentMap, "identity.map": e.target.value })}
+                      className={`${inputCls} resize-none`}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {"Buka Google Maps -> Cari lokasi -> Klik Share (Bagikan) -> Pilih tab Sematkan Peta (Embed Map) -> Salin HTML (Copy HTML) lalu tempel di sini."}
+                    </p>
+                  </div>
                 </div>
               </div>
               <button
-                onClick={() => handleSaveAllTabContent(["identity.name", "identity.address", "identity.email", "identity.phone", "identity.logo"])}
+                onClick={() => handleSaveAllTabContent(["identity.name", "identity.address", "identity.email", "identity.phone", "identity.logo", "identity.map", "identity.whatsapp"])}
                 className="bg-primary hover:bg-primary/90 text-white px-6 py-2.5 rounded-lg text-sm font-semibold flex items-center gap-2"
               >
                 <Save className="w-4 h-4" /> Simpan Identitas
@@ -567,7 +644,7 @@ export function GapoktanContent() {
                       onClick={() => {
                         setBeritaMode("list");
                         setEditBeritaId(null);
-                        setBeritaForm({ title: "", description: "", content: "", category: "Berita", is_published: true });
+                        setBeritaForm({ title: "", description: "", content: "", category: "Berita", is_published: true, image_url: "" });
                       }}
                       className="p-2 hover:bg-secondary rounded-lg transition-colors"
                     >
@@ -601,6 +678,42 @@ export function GapoktanContent() {
                       <option value="Pengumuman">Pengumuman</option>
                       <option value="Kegiatan">Kegiatan Kelompok</option>
                     </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm mb-2 text-foreground font-semibold font-sans">Gambar Headline (Sampul Berita)</label>
+                    <div className="flex items-center gap-4">
+                      {beritaForm.image_url && (
+                        <div className="relative w-24 h-24 rounded-lg overflow-hidden border border-border flex-shrink-0">
+                          <img
+                            src={beritaForm.image_url}
+                            alt="Preview Headline"
+                            className="w-full h-full object-cover"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setBeritaForm({ ...beritaForm, image_url: "" })}
+                            className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white rounded-full p-1 shadow-md transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      )}
+                      <div className="flex-1">
+                        <label className="inline-flex items-center justify-center gap-2 bg-secondary hover:bg-secondary/80 text-primary px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors cursor-pointer border border-border/50">
+                          <Upload className="w-4 h-4" />
+                          {uploadingImage ? "Mengupload..." : beritaForm.image_url ? "Ganti Gambar" : "Unggah Gambar Sampul"}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleNewsImageUpload}
+                            disabled={uploadingImage}
+                            className="hidden"
+                          />
+                        </label>
+                        <p className="text-xs text-muted-foreground mt-1">Format: JPG, PNG, atau WEBP. Maks 5MB.</p>
+                      </div>
+                    </div>
                   </div>
 
                   <div>
@@ -652,7 +765,7 @@ export function GapoktanContent() {
                       onClick={() => {
                         setBeritaMode("list");
                         setEditBeritaId(null);
-                        setBeritaForm({ title: "", description: "", content: "", category: "Berita", is_published: true });
+                        setBeritaForm({ title: "", description: "", content: "", category: "Berita", is_published: true, image_url: "" });
                       }}
                       className="bg-muted hover:bg-muted/80 text-foreground px-6 py-3 rounded-lg font-medium transition-colors"
                     >
