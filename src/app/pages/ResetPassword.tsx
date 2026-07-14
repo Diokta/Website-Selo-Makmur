@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import { useAuth } from "../../hooks/useAuth";
 import { useWebsiteContent } from "../../hooks/useWebsiteContent";
 import { Eye, EyeOff, Lock, CheckCircle2, Sprout } from "lucide-react";
@@ -8,8 +8,9 @@ export function ResetPassword() {
   const { getContent } = useWebsiteContent();
   const brandName = getContent("identity.name", "Gapoktan Selo Makmur");
   const logoUrl = getContent("identity.logo", "");
-  const navigate = useNavigate();
-  const { updatePassword, signOut, session } = useAuth();
+  const [searchParams] = useSearchParams();
+  const token = searchParams.get("token");
+  const { resetPasswordWithToken, signOut } = useAuth();
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -18,19 +19,12 @@ export function ResetPassword() {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
 
-  // Memastikan session pemulihan terdeteksi
+  // Memastikan token pemulihan terdeteksi
   useEffect(() => {
-    // Jika tidak ada hash token di URL dan tidak ada session aktif,
-    // mungkin link sudah kedaluwarsa atau salah akses.
-    const hasHash = window.location.hash || window.location.search.includes("code=");
-    const timer = setTimeout(() => {
-      if (!session && !hasHash) {
-        setError("Sesi pemulihan tidak terdeteksi atau sudah kedaluwarsa. Silakan ajukan ulang link Lupa Password.");
-      }
-    }, 1500);
-
-    return () => clearTimeout(timer);
-  }, [session]);
+    if (!token) {
+      setError("Token pemulihan tidak terdeteksi atau sudah kedaluwarsa. Silakan ajukan ulang link Lupa Password.");
+    }
+  }, [token]);
 
   const inputFocus = (e: React.FocusEvent<HTMLInputElement>) => {
     e.target.style.borderColor = "var(--accent)";
@@ -58,8 +52,13 @@ export function ResetPassword() {
       return;
     }
 
+    if (!token) {
+      setError("Token pemulihan tidak valid.");
+      return;
+    }
+
     setIsLoading(true);
-    const { error: resetErr } = await updatePassword(password);
+    const { error: resetErr } = await resetPasswordWithToken(token, password);
     setIsLoading(false);
 
     if (resetErr) {

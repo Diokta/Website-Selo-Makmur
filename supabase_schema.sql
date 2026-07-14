@@ -206,6 +206,17 @@ CREATE TABLE IF NOT EXISTS public.email_verifications (
     created_at TIMESTAMPTZ DEFAULT now() NOT NULL
 );
 
+-- Tabel: password_resets (Penyimpanan token pemulihan/reset password)
+CREATE TABLE IF NOT EXISTS public.password_resets (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES public.users(id) ON DELETE CASCADE NOT NULL,
+    email TEXT NOT NULL,
+    token TEXT NOT NULL UNIQUE,
+    expires_at TIMESTAMPTZ NOT NULL,
+    used_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT now() NOT NULL
+);
+
 -- ── 2. HELPER FUNCTIONS & TRIGGERS ───────────────────────────────────────
 
 -- Helper: Cek apakah user yang login memiliki role 'super_admin'
@@ -326,6 +337,83 @@ BEGIN
 END;
 $$;
 
+-- RPC: create_reset_token (Membuat token reset password baru)
+CREATE OR REPLACE FUNCTION public.create_reset_token(
+  p_user_id UUID,
+  p_email TEXT,
+  p_token TEXT,
+  p_expires_at TIMESTAMPTZ
+)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  INSERT INTO public.password_resets (user_id, email, token, expires_at)
+  VALUES (p_user_id, p_email, p_token, p_expires_at);
+END;
+$$;
+
+-- RPC: delete_unverified_reset_tokens (Menghapus token pemulihan lama yang belum digunakan)
+CREATE OR REPLACE FUNCTION public.delete_unverified_reset_tokens(
+  p_email TEXT
+)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  DELETE FROM public.password_resets
+  WHERE email = p_email AND used_at IS NULL;
+END;
+$$;
+
+-- RPC: reset_password_with_token (Memvalidasi token kustom dan mengupdate password di auth.users)
+CREATE OR REPLACE FUNCTION public.reset_password_with_token(
+  p_token TEXT,
+  p_new_password TEXT
+)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+DECLARE
+  v_user_id UUID;
+  v_email TEXT;
+BEGIN
+  -- 1. Cari token di password_resets
+  SELECT user_id, email INTO v_user_id, v_email
+  FROM public.password_resets
+  WHERE token = p_token
+    AND used_at IS NULL
+    AND expires_at > now();
+
+  IF v_user_id IS NULL THEN
+    RETURN FALSE;
+  END IF;
+
+  -- 2. Tandai token sebagai sudah digunakan
+  UPDATE public.password_resets
+  SET used_at = now()
+  WHERE token = p_token;
+
+  -- 3. Hapus token pemulihan lain yang belum digunakan milik email ini
+  DELETE FROM public.password_resets
+  WHERE email = v_email AND used_at IS NULL;
+
+  -- 4. Update password di auth.users menggunakan bcrypt crypt
+  UPDATE auth.users
+  SET encrypted_password = crypt(p_new_password, gen_salt('bf')),
+      updated_at = now()
+  WHERE id = v_user_id;
+
+  RETURN TRUE;
+END;
+$$;
+
 -- ── 4. ROW LEVEL SECURITY (RLS) POLICIES ─────────────────────────────────
 
 -- Aktifkan RLS di semua tabel
@@ -344,6 +432,7 @@ ALTER TABLE public.banners ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.cart_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.gapoktan_assets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.email_verifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.password_resets ENABLE ROW LEVEL SECURITY;
 
 -- Kebijakan: public.users
 CREATE POLICY "Users: read self or admin" ON public.users FOR SELECT USING (auth.uid() = id OR public.is_super_admin());
@@ -413,3 +502,6 @@ CREATE POLICY "Verifications: select token" ON public.email_verifications FOR SE
 CREATE POLICY "Verifications: update token" ON public.email_verifications FOR UPDATE USING (true);
 CREATE POLICY "Verifications: delete token" ON public.email_verifications FOR DELETE USING (true);
 CREATE POLICY "Verifications: insert token" ON public.email_verifications FOR INSERT WITH CHECK (true);
+
+-- Kebijakan: public.password_resets
+CREATE POLICY "Resets: select token" ON public.password_resets FOR SELECT USING (true);

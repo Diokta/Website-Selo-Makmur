@@ -25,6 +25,7 @@ interface AuthContextValue {
   verifyEmailToken: (token: string) => Promise<{ error: string | null }>;
   sendPasswordResetEmail: (email: string) => Promise<{ error: string | null }>;
   updatePassword: (newPassword: string) => Promise<{ error: string | null }>;
+  resetPasswordWithToken: (token: string, newPassword: string) => Promise<{ error: string | null }>;
 }
 
 interface SignUpData {
@@ -266,11 +267,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     name,
     token,
     verificationUrl,
+    type = "verify",
   }: {
     email: string;
     name: string;
     token: string;
     verificationUrl: string;
+    type?: "verify" | "reset";
   }): Promise<{ error: string | null }> => {
     try {
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
@@ -283,7 +286,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             "Content-Type": "application/json",
             "Authorization": `Bearer ${supabaseKey}`,
           },
-          body: JSON.stringify({ email, name, token, verificationUrl }),
+          body: JSON.stringify({ email, name, token, verificationUrl, type }),
         }
       );
       const json = await res.json();
@@ -378,19 +381,56 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const sendPasswordResetEmail = async (email: string): Promise<{ error: string | null }> => {
-    // 1. Coba verifikasi keberadaan email menggunakan RPC (SECURITY DEFINER) untuk mem-bypass RLS
+    // 1. Cek keberadaan email via RPC
     const { data: exists, error: rpcErr } = await supabase.rpc("check_email_exists", { p_email: email });
-
-    // Jika RPC berhasil dipanggil dan mengembalikan false (email dipastikan tidak ada)
     if (!rpcErr && exists === false) {
       return { error: "Email tidak terdaftar di sistem kami." };
     }
 
-    // 2. Jika RPC belum dipasang atau gagal, kita lakukan fallback langsung kirim reset email
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
+    // Dapatkan data user_id untuk token kustom
+    const { data: userData } = await supabase
+      .from("users")
+      .select("id, name")
+      .eq("email", email)
+      .single();
+
+    if (!userData) {
+      return { error: "Gagal memproses data pengguna." };
+    }
+
+    // 2. Hapus token pemulihan lama via RPC
+    await supabase.rpc("delete_unverified_reset_tokens", { p_email: email });
+
+    // 3. Buat token baru
+    const token = generateUUID() + "-" + Date.now().toString(36);
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+
+    const { error: tokenError } = await supabase.rpc("create_reset_token", {
+      p_user_id: userData.id,
+      p_email: email,
+      p_token: token,
+      p_expires_at: expiresAt,
     });
-    if (error) return { error: error.message };
+
+    if (tokenError) {
+      console.error("Gagal simpan token pemulihan:", tokenError);
+      return { error: "Gagal menyiapkan pemulihan password." };
+    }
+
+    // 4. Kirim email via Edge Function dengan type: "reset"
+    const verificationUrl = `${window.location.origin}/reset-password?token=${token}`;
+    const { error: emailErr } = await sendVerificationEmail({
+      email,
+      name: userData.name || "",
+      token,
+      verificationUrl,
+      type: "reset",
+    });
+
+    if (emailErr) {
+      return { error: emailErr };
+    }
+
     return { error: null };
   };
 
@@ -400,6 +440,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.auth.updateUser({ password: newPassword });
     if (error) return { error: error.message };
     return { error: null };
+  };
+
+  // ── resetPasswordWithToken ─────────────────────────────────
+
+  const resetPasswordWithToken = async (token: string, newPassword: string): Promise<{ error: string | null }> => {
+    try {
+      const { data: success, error } = await supabase.rpc("reset_password_with_token", {
+        p_token: token,
+        p_new_password: newPassword,
+      });
+
+      if (error) return { error: error.message };
+      if (!success) return { error: "Token tidak valid atau sudah kedaluwarsa." };
+
+      return { error: null };
+    } catch (err: any) {
+      return { error: err?.message || "Terjadi kesalahan sistem." };
+    }
   };
 
   const role = profile?.role ?? null;
@@ -420,6 +478,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         verifyEmailToken,
         sendPasswordResetEmail,
         updatePassword,
+        resetPasswordWithToken,
       }}
     >
       {children}
