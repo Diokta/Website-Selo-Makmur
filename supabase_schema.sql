@@ -370,6 +370,54 @@ BEGIN
 END;
 $$;
 
+-- RPC: request_password_reset (Mengamankan token reset dan info pengguna untuk alur lupa password tanpa memicu RLS)
+CREATE OR REPLACE FUNCTION public.request_password_reset(
+  p_email TEXT
+)
+RETURNS TABLE (
+  r_token TEXT,
+  r_name TEXT,
+  r_user_id UUID
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_user_id UUID;
+  v_name TEXT;
+  v_token TEXT;
+  v_expires_at TIMESTAMPTZ;
+BEGIN
+  -- 1. Cari user berdasarkan email (SECURITY DEFINER membypass RLS)
+  SELECT id, name INTO v_user_id, v_name
+  FROM public.users
+  WHERE email = p_email;
+
+  IF v_user_id IS NULL THEN
+    RETURN;
+  END IF;
+
+  -- 2. Hapus token pemulihan lama
+  DELETE FROM public.password_resets
+  WHERE email = p_email AND used_at IS NULL;
+
+  -- 3. Generate token baru
+  v_token := encode(gen_random_bytes(16), 'hex') || '-' || to_hex(extract(epoch from now())::bigint);
+  v_expires_at := now() + interval '24 hours';
+
+  -- 4. Simpan token
+  INSERT INTO public.password_resets (user_id, email, token, expires_at)
+  VALUES (v_user_id, p_email, v_token, v_expires_at);
+
+  -- 5. Kembalikan data
+  r_token := v_token;
+  r_name := v_name;
+  r_user_id := v_user_id;
+  RETURN NEXT;
+END;
+$$;
+
 -- RPC: reset_password_with_token (Memvalidasi token kustom dan mengupdate password di auth.users)
 CREATE OR REPLACE FUNCTION public.reset_password_with_token(
   p_token TEXT,

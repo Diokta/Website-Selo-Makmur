@@ -381,57 +381,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const sendPasswordResetEmail = async (email: string): Promise<{ error: string | null }> => {
-    // 1. Cek keberadaan email via RPC
-    const { data: exists, error: rpcErr } = await supabase.rpc("check_email_exists", { p_email: email });
-    if (!rpcErr && exists === false) {
-      return { error: "Email tidak terdaftar di sistem kami." };
+    try {
+      // Panggil RPC untuk membuat token pemulihan dan mengambil info pengguna (bypass RLS)
+      const { data, error: rpcErr } = await supabase.rpc("request_password_reset", {
+        p_email: email,
+      });
+
+      if (rpcErr) {
+        console.error("RPC request_password_reset error:", rpcErr);
+        return { error: "Gagal memproses permintaan lupa password." };
+      }
+
+      // Jika data kosong, berarti email tidak terdaftar
+      if (!data || data.length === 0) {
+        return { error: "Email tidak terdaftar di sistem kami." };
+      }
+
+      const { r_token, r_name } = data[0];
+
+      // Kirim email via Edge Function dengan type: "reset"
+      const verificationUrl = `${window.location.origin}/reset-password?token=${r_token}`;
+      const { error: emailErr } = await sendVerificationEmail({
+        email,
+        name: r_name || "",
+        token: r_token,
+        verificationUrl,
+        type: "reset",
+      });
+
+      if (emailErr) {
+        return { error: emailErr };
+      }
+
+      return { error: null };
+    } catch (err: any) {
+      console.error("sendPasswordResetEmail runtime error:", err);
+      return { error: err?.message || "Terjadi kesalahan sistem." };
     }
-
-    // Dapatkan data user_id untuk token kustom
-    const { data: userData } = await supabase
-      .from("users")
-      .select("id, name")
-      .eq("email", email)
-      .single();
-
-    if (!userData) {
-      return { error: "Gagal memproses data pengguna." };
-    }
-
-    // 2. Hapus token pemulihan lama via RPC
-    await supabase.rpc("delete_unverified_reset_tokens", { p_email: email });
-
-    // 3. Buat token baru
-    const token = generateUUID() + "-" + Date.now().toString(36);
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-
-    const { error: tokenError } = await supabase.rpc("create_reset_token", {
-      p_user_id: userData.id,
-      p_email: email,
-      p_token: token,
-      p_expires_at: expiresAt,
-    });
-
-    if (tokenError) {
-      console.error("Gagal simpan token pemulihan:", tokenError);
-      return { error: "Gagal menyiapkan pemulihan password." };
-    }
-
-    // 4. Kirim email via Edge Function dengan type: "reset"
-    const verificationUrl = `${window.location.origin}/reset-password?token=${token}`;
-    const { error: emailErr } = await sendVerificationEmail({
-      email,
-      name: userData.name || "",
-      token,
-      verificationUrl,
-      type: "reset",
-    });
-
-    if (emailErr) {
-      return { error: emailErr };
-    }
-
-    return { error: null };
   };
 
   // ── updatePassword ─────────────────────────────────────────
