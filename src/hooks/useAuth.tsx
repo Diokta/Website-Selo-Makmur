@@ -377,20 +377,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(null);
   };
 
-  // ── sendPasswordResetEmail ─────────────────────────────────
-
   const sendPasswordResetEmail = async (email: string): Promise<{ error: string | null }> => {
-    // Pastikan email terdaftar di tabel users
-    const { data, error: fetchErr } = await supabase
-      .from("users")
-      .select("id")
-      .eq("email", email)
-      .single();
+    // 1. Coba verifikasi keberadaan email menggunakan RPC (SECURITY DEFINER) untuk mem-bypass RLS
+    const { data: exists, error: rpcErr } = await supabase.rpc("check_email_exists", { p_email: email });
 
-    if (fetchErr || !data) {
+    // Jika RPC berhasil dipanggil dan mengembalikan false (email dipastikan tidak ada)
+    if (!rpcErr && exists === false) {
       return { error: "Email tidak terdaftar di sistem kami." };
     }
 
+    // 2. Jika RPC belum dipasang atau gagal, kita lakukan fallback langsung kirim reset email
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/reset-password`,
     });
