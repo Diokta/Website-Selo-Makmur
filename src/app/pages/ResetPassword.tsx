@@ -130,11 +130,11 @@ export function ResetPassword() {
                   Password Anda berhasil diperbarui. Silakan login kembali menggunakan password baru Anda.
                 </p>
               </div>
-              <button onClick={() => navigate("/login")}
-                className="w-full py-3.5 rounded-xl font-medium transition-colors hover:opacity-90 text-white"
+              <Link to="/login"
+                className="w-full py-3.5 rounded-xl font-medium transition-colors hover:opacity-90 text-white block text-center"
                 style={{ backgroundColor: "var(--primary)" }}>
                 Masuk ke Akun Anda
-              </button>
+              </Link>
             </div>
           ) : (
             <>

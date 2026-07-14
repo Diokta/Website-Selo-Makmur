@@ -381,7 +381,7 @@ RETURNS TABLE (
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, extensions
 AS $$
 DECLARE
   v_user_id UUID;
@@ -426,7 +426,7 @@ CREATE OR REPLACE FUNCTION public.reset_password_with_token(
 RETURNS BOOLEAN
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, auth
+SET search_path = public, auth, extensions
 AS $$
 DECLARE
   v_user_id UUID;
