@@ -23,6 +23,8 @@ interface AuthContextValue {
   signOut: () => Promise<void>;
   resendConfirmationEmail: (email: string) => Promise<{ error: string | null }>;
   verifyEmailToken: (token: string) => Promise<{ error: string | null }>;
+  sendPasswordResetEmail: (email: string) => Promise<{ error: string | null }>;
+  updatePassword: (newPassword: string) => Promise<{ error: string | null }>;
 }
 
 interface SignUpData {
@@ -375,6 +377,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(null);
   };
 
+  // ── sendPasswordResetEmail ─────────────────────────────────
+
+  const sendPasswordResetEmail = async (email: string): Promise<{ error: string | null }> => {
+    // Pastikan email terdaftar di tabel users
+    const { data, error: fetchErr } = await supabase
+      .from("users")
+      .select("id")
+      .eq("email", email)
+      .single();
+
+    if (fetchErr || !data) {
+      return { error: "Email tidak terdaftar di sistem kami." };
+    }
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    if (error) return { error: error.message };
+    return { error: null };
+  };
+
+  // ── updatePassword ─────────────────────────────────────────
+
+  const updatePassword = async (newPassword: string): Promise<{ error: string | null }> => {
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) return { error: error.message };
+    return { error: null };
+  };
+
   const role = profile?.role ?? null;
 
   return (
@@ -391,6 +422,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signOut,
         resendConfirmationEmail,
         verifyEmailToken,
+        sendPasswordResetEmail,
+        updatePassword,
       }}
     >
       {children}

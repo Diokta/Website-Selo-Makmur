@@ -18,6 +18,7 @@ import { NotFound } from "./pages/NotFound";
 import { Login } from "./pages/Login";
 import { Register } from "./pages/Register";
 import { VerifyEmail } from "./pages/VerifyEmail";
+import { ResetPassword } from "./pages/ResetPassword";
 
 // Admin Gapoktan Pages
 import { AdminGapoktanLayout } from "./pages/admin-gapoktan/AdminGapoktanLayout";
@@ -30,10 +31,11 @@ import { GapoktanGallery } from "./pages/admin-gapoktan/GapoktanGallery";
 import { GapoktanContent } from "./pages/admin-gapoktan/GapoktanContent";
 
 export const router = createBrowserRouter([
-  // ── Halaman tanpa layout (Login, Register, VerifyEmail) ──
+  // ── Halaman tanpa layout (Login, Register, VerifyEmail, ResetPassword) ──
   { path: "/login", Component: Login },
   { path: "/register", Component: Register },
   { path: "/verify-email", Component: VerifyEmail },
+  { path: "/reset-password", Component: ResetPassword },
 
   // ── Portal publik (dengan Header & Footer) ──
   {
