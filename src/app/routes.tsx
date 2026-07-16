@@ -29,6 +29,7 @@ import { GapoktanUsers } from "./pages/admin-gapoktan/GapoktanUsers";
 import { GapoktanFinance } from "./pages/admin-gapoktan/GapoktanFinance";
 import { GapoktanGallery } from "./pages/admin-gapoktan/GapoktanGallery";
 import { GapoktanContent } from "./pages/admin-gapoktan/GapoktanContent";
+import { GapoktanAssets } from "./pages/admin-gapoktan/GapoktanAssets";
 
 export const router = createBrowserRouter([
   // ── Halaman tanpa layout (Login, Register, VerifyEmail, ResetPassword) ──
@@ -72,6 +73,7 @@ export const router = createBrowserRouter([
       { path: "finance", Component: GapoktanFinance },
       { path: "gallery", Component: GapoktanGallery },
       { path: "content", Component: GapoktanContent },
+      { path: "assets", Component: GapoktanAssets },
     ],
   },
 ]);
