@@ -44,7 +44,7 @@ export function GapoktanAssets() {
       const { data, error } = await supabase
         .from("gapoktan_assets")
         .select("*")
-        .order("created_at", { ascending: false });
+        .order("nama", { ascending: true });
 
       if (error) throw error;
       if (data) setAssets(data);
