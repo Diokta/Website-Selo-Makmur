@@ -3,6 +3,9 @@ import { Wrench, Calendar, Info } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { LoadingSpinner } from "./ui/LoadingSpinner";
+import Slider from "react-slick";
+import "slick-carousel/slick/slick.css";
+import "slick-carousel/slick/slick-theme.css";
 
 export function GapoktanAssetsSection() {
   const [assets, setAssets] = useState<any[]>([]);
@@ -27,6 +30,34 @@ export function GapoktanAssetsSection() {
     };
     fetchAssets();
   }, []);
+
+  const settings = {
+    dots: true,
+    infinite: assets.length > 3,
+    speed: 500,
+    slidesToShow: Math.min(3, assets.length),
+    slidesToScroll: 1,
+    autoplay: assets.length > 1,
+    autoplaySpeed: 3000,
+    responsive: [
+      {
+        breakpoint: 1024,
+        settings: {
+          slidesToShow: Math.min(2, assets.length),
+          slidesToScroll: 1,
+          infinite: assets.length > 2,
+        },
+      },
+      {
+        breakpoint: 640,
+        settings: {
+          slidesToShow: 1,
+          slidesToScroll: 1,
+          infinite: assets.length > 1,
+        },
+      },
+    ],
+  };
 
   if (loading) {
     return (
@@ -57,56 +88,62 @@ export function GapoktanAssetsSection() {
             <p className="text-sm text-muted-foreground mt-1">Daftar aset fasilitas saat ini sedang diperbarui oleh pengurus Gapoktan.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mb-8">
-            {assets.map((asset) => (
-              <div
-                key={asset.id}
-                className="bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border border-border/40 flex flex-col h-[380px]"
-              >
-                {/* Area Gambar */}
-                <div className="relative h-44 sm:h-48 w-full bg-muted overflow-hidden flex-shrink-0">
-                  <ImageWithFallback
-                    src={asset.image_url}
-                    alt={asset.nama}
-                    className="w-full h-full object-cover"
-                  />
-                  {asset.kategori && (
-                    <div className="absolute top-3 left-3">
-                      <span className="bg-primary/95 backdrop-blur-sm text-white px-2.5 py-1 rounded-md text-xs font-semibold shadow-sm">
-                        {asset.kategori}
-                      </span>
+          <div className={`assets-carousel mb-8 mx-auto ${
+            assets.length === 1 ? "max-w-md" : 
+            assets.length === 2 ? "max-w-4xl" : "max-w-7xl"
+          }`}>
+            <Slider {...settings}>
+              {assets.map((asset) => (
+                <div key={asset.id} className="px-2 sm:px-3 pb-4">
+                  <div
+                    className="bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border border-border/40 flex flex-col h-[400px] sm:h-[430px]"
+                  >
+                    {/* Area Gambar */}
+                    <div className="relative h-48 sm:h-52 w-full bg-muted overflow-hidden flex-shrink-0">
+                      <ImageWithFallback
+                        src={asset.image_url}
+                        alt={asset.nama}
+                        className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                      />
+                      {asset.kategori && (
+                        <div className="absolute top-3 left-3">
+                          <span className="bg-primary/95 backdrop-blur-sm text-white px-2.5 py-1 rounded-md text-xs font-semibold shadow-sm">
+                            {asset.kategori}
+                          </span>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
 
-                {/* Konten Detail */}
-                <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between">
-                  <div className="space-y-2">
-                    <h3 className="text-base sm:text-lg text-primary font-bold line-clamp-1" title={asset.nama}>
-                      {asset.nama}
-                    </h3>
-                    <p className="text-xs sm:text-sm text-muted-foreground line-clamp-3 leading-relaxed">
-                      {asset.deskripsi || "Tidak ada deskripsi untuk aset ini."}
-                    </p>
-                  </div>
+                    {/* Konten Detail */}
+                    <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between">
+                      <div className="space-y-2">
+                        <h3 className="text-base sm:text-lg text-primary font-bold line-clamp-1" title={asset.nama}>
+                          {asset.nama}
+                        </h3>
+                        <p className="text-xs sm:text-sm text-muted-foreground line-clamp-3 leading-relaxed">
+                          {asset.deskripsi || "Tidak ada deskripsi untuk aset ini."}
+                        </p>
+                      </div>
 
-                  <div className="flex items-center gap-4 text-xs text-muted-foreground pt-3 border-t border-border/50 mt-auto flex-shrink-0">
-                    {asset.tahun_perolehan && (
-                      <div className="flex items-center gap-1">
-                        <Calendar className="w-3.5 h-3.5 text-accent" />
-                        <span>Perolehan: {asset.tahun_perolehan}</span>
+                      <div className="flex items-center gap-4 text-xs text-muted-foreground pt-3 border-t border-border/50 mt-auto flex-shrink-0">
+                        {asset.tahun_perolehan && (
+                          <div className="flex items-center gap-1">
+                            <Calendar className="w-3.5 h-3.5 text-accent" />
+                            <span>Perolehan: {asset.tahun_perolehan}</span>
+                          </div>
+                        )}
+                        {!asset.tahun_perolehan && (
+                          <div className="flex items-center gap-1">
+                            <Info className="w-3.5 h-3.5 text-muted-foreground/60" />
+                            <span>Umum</span>
+                          </div>
+                        )}
                       </div>
-                    )}
-                    {!asset.tahun_perolehan && (
-                      <div className="flex items-center gap-1">
-                        <Info className="w-3.5 h-3.5 text-muted-foreground/60" />
-                        <span>Umum</span>
-                      </div>
-                    )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </Slider>
           </div>
         )}
       </div>

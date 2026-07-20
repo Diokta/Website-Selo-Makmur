@@ -91,6 +91,20 @@ export function WebsiteContentProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // Update favicon secara dinamis berdasarkan logo yang diunggah
+  useEffect(() => {
+    const logoUrl = content["identity.logo"];
+    if (logoUrl) {
+      let link: HTMLLinkElement | null = document.querySelector("link[rel~='icon']");
+      if (!link) {
+        link = document.createElement("link");
+        link.rel = "icon";
+        document.getElementsByTagName("head")[0].appendChild(link);
+      }
+      link.href = logoUrl;
+    }
+  }, [content]);
+
   const getContent = (key: string, defaultValue = ""): string => {
     return content[key] !== undefined ? content[key] : defaultValue;
   };
