@@ -2,12 +2,14 @@ import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router";
 import { Package, Clock, CheckCircle, XCircle, ShoppingBag, Upload, ArrowLeft, Phone, MapPin, Image as ImageIcon } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
+import { useWebsiteContent } from "../../hooks/useWebsiteContent";
 import { supabase } from "../../lib/supabase";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 
 export function OrderDetail() {
   const { id } = useParams<{ id: string }>();
   const { user, loading: authLoading } = useAuth();
+  const { getContent } = useWebsiteContent();
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -407,9 +409,14 @@ export function OrderDetail() {
                     <p className="font-bold text-primary">Rekening Transfer Bank:</p>
                     <p className="text-[11px] text-muted-foreground">Silakan transfer tepat sebesar nominal di atas ke:</p>
                     <div className="font-semibold text-primary text-[11px] space-y-0.5">
-                      <p>🏦 Bank Mandiri: <span className="font-mono font-bold">137-00-1234567-8</span></p>
-                      <p>🏦 Bank BRI: <span className="font-mono font-bold">0002-01-000123-30-0</span></p>
-                      <p className="text-muted-foreground text-[10px] mt-1 italic">a.n. Gapoktan Selo Makmur</p>
+                      <p>🏦 Bank: <span className="font-bold">{getContent("payment.bank_name", "Bank Mandiri / BRI")}</span></p>
+                      <p>💳 No. Rekening: <span className="font-mono font-bold text-accent">{getContent("payment.bank_account", "137-00-1234567-8")}</span></p>
+                      <p className="text-muted-foreground text-[10px]">a.n. <span className="font-bold">{getContent("payment.account_holder", "Gapoktan Selo Makmur")}</span></p>
+                      {getContent("payment.bank_info") && (
+                        <p className="text-[10px] text-muted-foreground whitespace-pre-line mt-1 pt-1 border-t border-accent/15 italic">
+                          {getContent("payment.bank_info")}
+                        </p>
+                      )}
                     </div>
                   </div>
                 )}

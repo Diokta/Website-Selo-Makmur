@@ -13,14 +13,23 @@ import {
   Edit,
   ArrowLeft,
   CheckCircle,
+  CreditCard,
 } from "lucide-react";
 import { supabase } from "../../../lib/supabase";
 import { LoadingSpinner } from "../../components/ui/LoadingSpinner";
+import { useWebsiteContent } from "../../../hooks/useWebsiteContent";
 
 const inputCls =
   "w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm";
 
+const DEFAULT_VISI = "Menjadi organisasi kelompok tani yang mandiri, profesional, dan berkelanjutan dalam menghasilkan produk pertanian berkualitas tinggi untuk meningkatkan kesejahteraan petani dan masyarakat.";
+const DEFAULT_MISI = `Meningkatkan kualitas produksi pertanian melalui teknologi modern
+Membangun kemitraan strategis dengan berbagai pihak
+Memberdayakan petani melalui pelatihan dan pendampingan
+Menjaga kelestarian lingkungan dan pertanian berkelanjutan`;
+
 export function GapoktanContent() {
+  const { refreshContent } = useWebsiteContent();
   const [activeTab, setActiveTab] = useState("identitas");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -37,6 +46,7 @@ export function GapoktanContent() {
   const [beritaForm, setBeritaForm] = useState({ title: "", description: "", content: "", category: "Berita", is_published: true, image_url: "" });
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadingHero, setUploadingHero] = useState(false);
 
   const handleNewsImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -100,6 +110,37 @@ export function GapoktanContent() {
     }
   };
 
+  const handleHeroImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingHero(true);
+    try {
+      const fileExt = file.name.split(".").pop();
+      const fileName = `hero-${Date.now()}.${fileExt}`;
+      const filePath = `banners/${fileName}`;
+      const { error: uploadError } = await supabase.storage
+        .from("product-images")
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage
+        .from("product-images")
+        .getPublicUrl(filePath);
+
+      setContentMap((prev) => ({ ...prev, "hero.image": data.publicUrl }));
+    } catch (err) {
+      console.warn("Storage upload failed, falling back to base64 encoding:", err);
+      const reader = new FileReader();
+      reader.onload = () => {
+        setContentMap((prev) => ({ ...prev, "hero.image": reader.result as string }));
+      };
+      reader.readAsDataURL(file);
+    } finally {
+      setUploadingHero(false);
+    }
+  };
+
   useEffect(() => {
     fetchContentAndNews();
   }, []);
@@ -117,7 +158,22 @@ export function GapoktanContent() {
         contentData.forEach((item) => {
           map[item.section_key] = item.value || "";
         });
+        if (!map["visi"]) map["visi"] = DEFAULT_VISI;
+        if (!map["misi"]) map["misi"] = DEFAULT_MISI;
+        if (!map["payment.bank_name"]) map["payment.bank_name"] = "Bank Mandiri / BRI";
+        if (!map["payment.bank_account"]) map["payment.bank_account"] = "137-00-1234567-8";
+        if (!map["payment.account_holder"]) map["payment.account_holder"] = "Gapoktan Selo Makmur";
+        if (!map["payment.bank_info"]) map["payment.bank_info"] = "Atau via Bank BRI: 0002-01-000123-30-0 a.n. Gapoktan Selo Makmur";
         setContentMap(map);
+      } else {
+        setContentMap({
+          visi: DEFAULT_VISI,
+          misi: DEFAULT_MISI,
+          "payment.bank_name": "Bank Mandiri / BRI",
+          "payment.bank_account": "137-00-1234567-8",
+          "payment.account_holder": "Gapoktan Selo Makmur",
+          "payment.bank_info": "Atau via Bank BRI: 0002-01-000123-30-0 a.n. Gapoktan Selo Makmur",
+        });
       }
 
       // 2. Fetch news (where type = 'Berita')
@@ -152,6 +208,7 @@ export function GapoktanContent() {
 
       if (error) throw error;
       setContentMap((prev) => ({ ...prev, [key]: value }));
+      await refreshContent();
       setSuccessMsg("Konten berhasil disimpan.");
     } catch (err: any) {
       setErrorMsg(err.message || "Gagal menyimpan konten.");
@@ -176,6 +233,7 @@ export function GapoktanContent() {
           }, { onConflict: "section_key" });
         if (error) throw error;
       }
+      await refreshContent();
       setSuccessMsg("Semua perubahan pada tab ini berhasil disimpan.");
     } catch (err: any) {
       setErrorMsg(err.message || "Terjadi kesalahan saat menyimpan.");
@@ -274,6 +332,7 @@ export function GapoktanContent() {
 
   const tabs = [
     { id: "identitas", name: "Identitas", icon: Building2 },
+    { id: "rekening", name: "Rekening Bank", icon: CreditCard },
     { id: "hero", name: "Banner / Hero", icon: ImageIcon },
     { id: "statistik", name: "Statistik", icon: BarChart2 },
     { id: "visi-misi", name: "Visi & Misi", icon: Info },
@@ -459,11 +518,68 @@ export function GapoktanContent() {
             </div>
           )}
 
-          {/* ── HERO ── */}
+          {/* ── REKENING BANK ── */}
+          {activeTab === "rekening" && (
+            <div className="space-y-6">
+              <p className="text-sm text-muted-foreground font-medium">
+                Kelola nomor rekening bank resmi Gapoktan yang akan ditampilkan kepada pembeli pada halaman Checkout dan Detail Pesanan.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm mb-2 text-foreground font-semibold">Nama Bank</label>
+                  <input
+                    type="text"
+                    placeholder="Contoh: Bank Mandiri / Bank BRI"
+                    value={contentMap["payment.bank_name"] || ""}
+                    onChange={(e) => setContentMap({ ...contentMap, "payment.bank_name": e.target.value })}
+                    className={inputCls}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm mb-2 text-foreground font-semibold">Nomor Rekening</label>
+                  <input
+                    type="text"
+                    placeholder="Contoh: 137-00-1234567-8"
+                    value={contentMap["payment.bank_account"] || ""}
+                    onChange={(e) => setContentMap({ ...contentMap, "payment.bank_account": e.target.value })}
+                    className={inputCls}
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-sm mb-2 text-foreground font-semibold">Atas Nama Rekening</label>
+                  <input
+                    type="text"
+                    placeholder="Contoh: Gapoktan Selo Makmur"
+                    value={contentMap["payment.account_holder"] || ""}
+                    onChange={(e) => setContentMap({ ...contentMap, "payment.account_holder": e.target.value })}
+                    className={inputCls}
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-sm mb-2 text-foreground font-semibold font-sans">Instruksi / Catatan Rekening Tambahan</label>
+                  <textarea
+                    rows={3}
+                    placeholder="Contoh: Atau via Bank BRI: 0002-01-000123-30-0 a.n. Gapoktan Selo Makmur"
+                    value={contentMap["payment.bank_info"] || ""}
+                    onChange={(e) => setContentMap({ ...contentMap, "payment.bank_info": e.target.value })}
+                    className={`${inputCls} resize-none`}
+                  />
+                </div>
+              </div>
+              <button
+                onClick={() => handleSaveAllTabContent(["payment.bank_name", "payment.bank_account", "payment.account_holder", "payment.bank_info"])}
+                className="bg-primary hover:bg-primary/90 text-white px-6 py-2.5 rounded-lg text-sm font-semibold flex items-center gap-2"
+              >
+                <Save className="w-4 h-4" /> Simpan Rekening Bank
+              </button>
+            </div>
+          )}
+
+          {/* ── HERO / BANNER ── */}
           {activeTab === "hero" && (
             <div className="space-y-6">
               <p className="text-sm text-muted-foreground font-medium">
-                Konten teks utama yang tampil di area Banner/Hero halaman Beranda utama.
+                Konten teks dan gambar latar belakang utama yang tampil di area Banner/Hero halaman Beranda utama.
               </p>
               <div className="space-y-4">
                 <div>
@@ -484,9 +600,52 @@ export function GapoktanContent() {
                     className={`${inputCls} resize-none`}
                   />
                 </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end border-t border-secondary/10 pt-4 mt-2">
+                  <div className="md:col-span-2">
+                    <label className="block text-sm mb-2 text-foreground font-semibold">Gambar Latar Banner Hero (URL)</label>
+                    <input
+                      type="text"
+                      placeholder="Masukkan URL gambar atau unggah file gambar di samping"
+                      value={contentMap["hero.image"] || ""}
+                      onChange={(e) => setContentMap({ ...contentMap, "hero.image": e.target.value })}
+                      className={inputCls}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm mb-2 text-foreground font-semibold">Upload Gambar Banner</label>
+                    <label className="flex items-center justify-center gap-2 border border-dashed border-border rounded-lg p-3 bg-secondary/20 hover:bg-secondary/40 cursor-pointer transition-colors text-sm font-medium">
+                      <Upload className="w-4 h-4 text-muted-foreground" />
+                      <span>{uploadingHero ? "Mengupload..." : "Upload Gambar"}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleHeroImageUpload}
+                        className="hidden"
+                        disabled={uploadingHero}
+                      />
+                    </label>
+                  </div>
+                  {contentMap["hero.image"] && (
+                    <div className="md:col-span-3 bg-secondary/10 p-4 rounded-xl space-y-2 mt-2 border border-border">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-semibold text-foreground">Pratinjau Banner Hero</p>
+                        <button
+                          type="button"
+                          onClick={() => setContentMap({ ...contentMap, "hero.image": "" })}
+                          className="text-destructive hover:text-destructive/80 text-xs font-semibold"
+                        >
+                          Hapus Gambar
+                        </button>
+                      </div>
+                      <div className="relative h-44 sm:h-52 w-full rounded-lg overflow-hidden border bg-black/10">
+                        <img src={contentMap["hero.image"]} alt="Pratinjau Banner" className="w-full h-full object-cover" />
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
               <button
-                onClick={() => handleSaveAllTabContent(["hero.title", "hero.subtitle"])}
+                onClick={() => handleSaveAllTabContent(["hero.title", "hero.subtitle", "hero.image"])}
                 className="bg-primary hover:bg-primary/90 text-white px-6 py-2.5 rounded-lg text-sm font-semibold flex items-center gap-2"
               >
                 <Save className="w-4 h-4" /> Simpan Konten Hero

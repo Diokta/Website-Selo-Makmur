@@ -106,7 +106,17 @@ export function WebsiteContentProvider({ children }: { children: ReactNode }) {
   }, [content]);
 
   const getContent = (key: string, defaultValue = ""): string => {
-    return content[key] !== undefined ? content[key] : defaultValue;
+    const val = content[key];
+    return val !== undefined && val !== null && val !== "" ? val : defaultValue;
+  };
+
+  const refreshContent = async () => {
+    try {
+      localStorage.removeItem(CACHE_KEY);
+    } catch (e) {
+      console.warn("Gagal menghapus cache website_content:", e);
+    }
+    await fetchContent(false);
   };
 
   return (
@@ -115,7 +125,7 @@ export function WebsiteContentProvider({ children }: { children: ReactNode }) {
         content,
         loading,
         getContent,
-        refreshContent: () => fetchContent(false),
+        refreshContent,
       }}
     >
       {children}

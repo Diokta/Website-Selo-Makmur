@@ -7,12 +7,16 @@ export function HeroSection() {
   const { getContent } = useWebsiteContent();
   const title = getContent("hero.title", "Gabungan Kelompok Tani Selo Makmur");
   const subtitle = getContent("hero.subtitle", "Bersama Membangun Pertanian Berkelanjutan untuk Masa Depan yang Lebih Hijau");
+  const heroImage = getContent(
+    "hero.image",
+    "https://images.unsplash.com/photo-1676281945191-4c0ed1a1784d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHw1fHxJbmRvbmVzaWFuJTIwZmFybWVycyUyMHdvcmtpbmclMjBpbiUyMHJpY2UlMjBmaWVsZHxlbnwxfHx8fDE3ODA0NjExNzh8MA&ixlib=rb-4.1.0&q=80&w=1080"
+  );
 
   return (
     <div className="relative h-[70vh] min-h-[500px] overflow-hidden">
       <div className="absolute inset-0">
         <ImageWithFallback
-          src="https://images.unsplash.com/photo-1676281945191-4c0ed1a1784d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHw1fHxJbmRvbmVzaWFuJTIwZmFybWVycyUyMHdvcmtpbmclMjBpbiUyMHJpY2UlMjBmaWVsZHxlbnwxfHx8fDE3ODA0NjExNzh8MA&ixlib=rb-4.1.0&q=80&w=1080"
+          src={heroImage}
           alt="Petani bekerja di sawah"
           className="w-full h-full object-cover"
         />

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useLocation, Link } from "react-router";
 import { CreditCard, MapPin, Truck, Wallet, ShoppingBag, ArrowRight, AlertTriangle } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
+import { useWebsiteContent } from "../../hooks/useWebsiteContent";
 import { supabase } from "../../lib/supabase";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 
@@ -9,6 +10,7 @@ export function Checkout() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, loading: authLoading } = useAuth();
+  const { getContent } = useWebsiteContent();
   const selectedIds = location.state?.selectedIds as string[] | undefined;
   
   const [paymentMethod, setPaymentMethod] = useState("transfer");
@@ -728,12 +730,31 @@ export function Checkout() {
                     className="w-5 h-5 text-accent"
                   />
                   <div className="flex-1">
-                    <p className="text-lg text-primary">Transfer Bank</p>
+                    <p className="text-lg text-primary font-bold">Transfer Bank</p>
                     <p className="text-sm text-muted-foreground">
-                      BCA, BNI, Mandiri, BRI
+                      {getContent("payment.bank_name", "Bank Mandiri / BRI")}
                     </p>
                   </div>
                 </label>
+
+                {paymentMethod === "transfer" && (
+                  <div className="mt-3 p-4 bg-accent/5 rounded-xl border border-accent/20 space-y-2 text-sm">
+                    <p className="font-bold text-primary flex items-center gap-2">
+                      <CreditCard className="w-4 h-4 text-accent" />
+                      Informasi Rekening Transfer Gapoktan:
+                    </p>
+                    <div className="font-semibold text-primary space-y-1.5 pl-2 sm:pl-6 text-xs sm:text-sm">
+                      <p>🏦 Bank: <span className="font-bold">{getContent("payment.bank_name", "Bank Mandiri / BRI")}</span></p>
+                      <p>💳 No. Rekening: <span className="font-mono font-bold text-accent">{getContent("payment.bank_account", "137-00-1234567-8")}</span></p>
+                      <p>👤 Atas Nama: <span className="font-bold">{getContent("payment.account_holder", "Gapoktan Selo Makmur")}</span></p>
+                      {getContent("payment.bank_info") && (
+                        <p className="text-xs text-muted-foreground whitespace-pre-line mt-2 pt-2 border-t border-accent/15 italic">
+                          {getContent("payment.bank_info")}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
 
               </div>
             </div>
