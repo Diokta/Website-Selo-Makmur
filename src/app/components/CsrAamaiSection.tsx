@@ -1,36 +1,7 @@
-import { useState, useEffect } from "react";
-import { supabase } from "../../lib/supabase";
-import { Warehouse, Sprout, Cpu, Thermometer, Layers } from "lucide-react";
+import { Warehouse, Sprout } from "lucide-react";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 
 export function CsrAamaiSection() {
-  const [productCount, setProductCount] = useState<number>(0);
-  const [totalStock, setTotalStock] = useState<number>(0);
-  const [loading, setLoading] = useState<boolean>(true);
-
-  useEffect(() => {
-    const fetchLumbungStats = async () => {
-      try {
-        const { data, error } = await supabase
-          .from("products")
-          .select("stok")
-          .eq("status", "Aktif");
-
-        if (!error && data) {
-          setProductCount(data.length);
-          const sum = data.reduce((acc, item) => acc + (Number(item.stok) || 0), 0);
-          setTotalStock(sum);
-        }
-      } catch (err) {
-        console.error("Error fetching lumbung stats:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchLumbungStats();
-  }, []);
-
   return (
     <section className="py-16 sm:py-20 bg-gradient-to-b from-background to-white overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -76,40 +47,9 @@ export function CsrAamaiSection() {
                 <h3 className="text-2xl font-bold text-primary mb-3">
                   Sistem Lumbung Cerdas
                 </h3>
-                <p className="text-muted-foreground text-sm sm:text-base leading-relaxed mb-6">
+                <p className="text-muted-foreground text-sm sm:text-base leading-relaxed">
                   Fasilitas penyimpanan terkomputerisasi yang menjaga suhu dan kelembaban optimal secara otomatis. Dirancang untuk memperpanjang usia kesegaran hasil tani pasca-panen serta menstabilkan rantai pasok.
                 </p>
-              </div>
-
-              {/* Stats Box */}
-              <div className="bg-background rounded-xl p-4 sm:p-5 border border-border">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-                  Informasi Kapasitas Penyimpanan
-                </p>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-                      <Layers className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Varian Produk</p>
-                      <p className="text-lg font-bold text-primary">
-                        {loading ? "..." : `${productCount} Komoditas`}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center text-accent">
-                      <Cpu className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Total Stok</p>
-                      <p className="text-lg font-bold text-primary">
-                        {loading ? "..." : `${totalStock.toLocaleString("id-ID")} unit`}
-                      </p>
-                    </div>
-                  </div>
-                </div>
               </div>
             </div>
           </div>
@@ -126,7 +66,7 @@ export function CsrAamaiSection() {
               <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
               <div className="absolute bottom-5 left-5 flex items-center gap-3 bg-primary/95 text-white px-4 py-2 rounded-xl backdrop-blur-sm shadow-md">
                 <Sprout className="w-5 h-5 text-accent" />
-                <span className="text-sm font-semibold tracking-wide">Greenhouse CSR</span>
+                <span className="text-sm font-semibold tracking-wide">Greenhouse</span>
               </div>
             </div>
 
@@ -134,41 +74,14 @@ export function CsrAamaiSection() {
             <div className="p-6 sm:p-8 flex-1 flex flex-col justify-between">
               <div>
                 <p className="text-sm font-medium text-accent uppercase tracking-wider mb-2">
-                  Budidaya Presisi & IoT
+                  Budidaya Presisi
                 </p>
                 <h3 className="text-2xl font-bold text-primary mb-3">
-                  Greenhouse Terkontrol
+                  Greenhouse
                 </h3>
-                <p className="text-muted-foreground text-sm sm:text-base leading-relaxed mb-6">
+                <p className="text-muted-foreground text-sm sm:text-base leading-relaxed">
                   Pusat pembibitan dan budidaya tanaman premium bernilai tinggi menggunakan teknologi penutup terkontrol. Meminimalkan ancaman hama eksternal serta memaksimalkan efisiensi penggunaan air dan nutrisi.
                 </p>
-              </div>
-
-              {/* Stats Box */}
-              <div className="bg-background rounded-xl p-4 sm:p-5 border border-border">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-                  Spesifikasi & Parameter IoT
-                </p>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-                      <Thermometer className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Suhu Rata-rata</p>
-                      <p className="text-lg font-bold text-primary">24°C - 28°C</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center text-accent">
-                      <Cpu className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Sensor Irigasi</p>
-                      <p className="text-lg font-bold text-primary">Drip Otomatis</p>
-                    </div>
-                  </div>
-                </div>
               </div>
             </div>
           </div>
