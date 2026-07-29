@@ -145,13 +145,13 @@ export function About() {
             </div>
             <div className="max-w-4xl mx-auto space-y-4 text-base sm:text-lg text-muted-foreground leading-relaxed">
               <p>
-                Gabungan Kelompok Tani (Gapoktan) Selo Makmur didirikan pada tahun 2015 atas inisiatif para petani di wilayah Kecamatan Cisarua, Kabupaten Bogor. Berawal dari 8 kelompok tani kecil, kami berkembang menjadi wadah bagi 24 kelompok tani yang tersebar di berbagai dusun.
+                Gabungan Kelompok Tani (Gapoktan) Selo Makmur didirikan pada tahun 2015 atas inisiatif para petani di wilayah Desa Selomartani, Kecamatan Kalasan, Kabupaten Sleman, D.I. Yogyakarta. Berawal dari 8 kelompok tani kecil, kami berkembang menjadi wadah bagi kelompok-kelompok tani yang tersebar di berbagai dusun.
               </p>
               <p>
                 Sejak awal berdiri, Gapoktan Selo Makmur berkomitmen untuk meningkatkan kesejahteraan petani melalui peningkatan kualitas produksi, akses pasar yang lebih luas, dan penerapan teknologi pertanian modern. Kami juga aktif dalam berbagai program pemerintah seperti distribusi pupuk bersubsidi, bantuan alat pertanian, dan pelatihan budidaya organik.
               </p>
               <p>
-                Pada tahun 2020, Gapoktan Selo Makmur meraih penghargaan sebagai Gapoktan Terbaik tingkat Kabupaten Bogor atas prestasi dalam peningkatan produksi padi dan diversifikasi komoditas pertanian. Hingga kini, kami terus berinovasi untuk memberikan yang terbaik bagi anggota dan masyarakat.
+                Pada tahun 2020, Gapoktan Selo Makmur meraih penghargaan sebagai Gapoktan Terbaik tingkat Kabupaten Sleman atas prestasi dalam peningkatan produksi padi dan diversifikasi komoditas pertanian. Hingga kini, kami terus berinovasi untuk memberikan yang terbaik bagi anggota dan masyarakat.
               </p>
             </div>
           </div>

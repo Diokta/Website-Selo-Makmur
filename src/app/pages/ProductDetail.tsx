@@ -31,6 +31,8 @@ export function ProductDetail() {
       setProduct(data);
       if (data?.product_variants?.length > 0) {
         setSelectedVariant(data.product_variants[0].size);
+      } else if (data) {
+        setSelectedVariant(data.unit || "Standar");
       }
       setLoading(false);
     };
@@ -47,7 +49,7 @@ export function ProductDetail() {
 
     setAddingToCart(true);
     const productId = product.id;
-    const variantId = currentVariant ? currentVariant.id : null;
+    const variantId = currentVariant && currentVariant.id ? currentVariant.id : null;
 
     try {
       let query = supabase
@@ -67,7 +69,7 @@ export function ProductDetail() {
 
       if (existing && existing.length > 0) {
         const newQty = existing[0].quantity + quantity;
-        const maxStock = currentVariant ? currentVariant.stock : product.stock;
+        const maxStock = currentVariant ? currentVariant.stock : (product.stock ?? 0);
 
         if (newQty > maxStock) {
           throw new Error(`Tidak dapat menambah. Batas stok maksimum adalah ${maxStock}.`);
@@ -126,7 +128,17 @@ export function ProductDetail() {
   const variants = product.product_variants ?? [];
   const features = product.product_features?.map((f: any) => f.feature) ?? [];
 
-  const currentVariant = variants.find((v: any) => v.size === selectedVariant);
+  // Jika produk tidak memiliki varian khusus di tabel product_variants, buatkan varian fallback dari kolom produk bawaan (price, unit, stock)
+  const effectiveVariants = variants.length > 0 ? variants : [
+    {
+      id: null,
+      size: product.unit || "Standar",
+      price: product.price ?? 0,
+      stock: product.stock ?? 0,
+    }
+  ];
+
+  const currentVariant = effectiveVariants.find((v: any) => v.size === selectedVariant) || effectiveVariants[0];
   const totalPrice = currentVariant ? currentVariant.price * quantity : 0;
 
   const handleQuantityChange = (delta: number) => {
@@ -163,34 +175,36 @@ export function ProductDetail() {
                 {product.name}
               </h1>
               <p className="text-base sm:text-lg text-muted-foreground">
-                Dari {product.kelompok_tani?.nama}
+                Dari {product.kelompok_tani?.nama || "Gapoktan Selo Makmur"}
               </p>
             </div>
 
-            <div className="bg-secondary p-4 sm:p-6 rounded-xl">
-              <p className="text-sm text-muted-foreground mb-2">Metode Budidaya</p>
-              <p className="text-lg sm:text-xl text-primary">{product.cultivation_method}</p>
-            </div>
+            {product.cultivation_method && (
+              <div className="bg-secondary p-4 sm:p-6 rounded-xl">
+                <p className="text-sm text-muted-foreground mb-2">Metode Budidaya</p>
+                <p className="text-lg sm:text-xl text-primary">{product.cultivation_method}</p>
+              </div>
+            )}
 
             <div>
-              <p className="text-base sm:text-lg mb-3">Pilih Kemasan:</p>
+              <p className="text-base sm:text-lg mb-3 font-semibold text-primary">Pilih Kemasan / Satuan:</p>
               <div className="flex flex-wrap gap-3">
-                {variants.map((variant: any) => (
+                {effectiveVariants.map((variant: any, idx: number) => (
                   <button
-                    key={variant.size}
+                    key={variant.id || variant.size || idx}
                     onClick={() => {
                       setSelectedVariant(variant.size);
                       setQuantity(1);
                     }}
-                    className={`px-6 py-3 rounded-lg transition-colors border-2 ${
+                    className={`px-6 py-3 rounded-lg transition-colors border-2 cursor-pointer ${
                       selectedVariant === variant.size
-                        ? "border-accent bg-accent text-white"
+                        ? "border-accent bg-accent text-white shadow-md"
                         : "border-border bg-white text-foreground hover:border-accent"
                     }`}
                   >
-                    <div className="text-base sm:text-lg">{variant.size}</div>
-                    <div className="text-xs sm:text-sm opacity-80">
-                      Rp {variant.price.toLocaleString("id-ID")}
+                    <div className="text-base sm:text-lg font-semibold">{variant.size}</div>
+                    <div className="text-xs sm:text-sm opacity-90">
+                      Rp {Number(variant.price).toLocaleString("id-ID")}
                     </div>
                   </button>
                 ))}
@@ -200,28 +214,28 @@ export function ProductDetail() {
             {currentVariant && (
               <>
                 <div>
-                  <p className="text-base sm:text-lg mb-3">Jumlah:</p>
+                  <p className="text-base sm:text-lg mb-3 font-semibold text-primary">Jumlah:</p>
                   <div className="flex items-center gap-4">
                     <button
                       onClick={() => handleQuantityChange(-1)}
                       disabled={quantity <= 1}
-                      className="w-10 h-10 sm:w-12 sm:h-12 bg-white border-2 border-border rounded-lg flex items-center justify-center hover:border-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-10 h-10 sm:w-12 sm:h-12 bg-white border-2 border-border rounded-lg flex items-center justify-center hover:border-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                     >
                       <Minus className="w-5 h-5" />
                     </button>
-                    <span className="text-2xl sm:text-3xl text-primary min-w-[3rem] text-center">
+                    <span className="text-2xl sm:text-3xl text-primary min-w-[3rem] text-center font-bold">
                       {quantity}
                     </span>
                     <button
                       onClick={() => handleQuantityChange(1)}
                       disabled={quantity >= currentVariant.stock}
-                      className="w-10 h-10 sm:w-12 sm:h-12 bg-white border-2 border-border rounded-lg flex items-center justify-center hover:border-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-10 h-10 sm:w-12 sm:h-12 bg-white border-2 border-border rounded-lg flex items-center justify-center hover:border-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                     >
                       <Plus className="w-5 h-5" />
                     </button>
                   </div>
-                  <p className="text-sm text-muted-foreground mt-2">
-                    Stok tersedia: {currentVariant.stock} {selectedVariant}
+                  <p className="text-sm text-muted-foreground mt-2 font-medium">
+                    Stok tersedia: <span className="font-bold text-foreground">{currentVariant.stock}</span> {currentVariant.size}
                   </p>
                 </div>
 
@@ -229,16 +243,16 @@ export function ProductDetail() {
                   <p className="text-base sm:text-lg text-muted-foreground mb-2">
                     Total Harga
                   </p>
-                  <p className="text-3xl sm:text-4xl text-accent mb-4">
+                  <p className="text-3xl sm:text-4xl text-accent mb-4 font-bold">
                     Rp {totalPrice.toLocaleString("id-ID")}
                   </p>
                   <button
                     onClick={handleAddToCart}
-                    disabled={addingToCart || (currentVariant ? currentVariant.stock : product.stock) <= 0}
-                    className="w-full bg-accent hover:bg-accent/90 text-white py-3 sm:py-4 rounded-lg transition-colors flex items-center justify-center gap-2 text-base sm:text-lg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={addingToCart || currentVariant.stock <= 0}
+                    className="w-full bg-accent hover:bg-accent/90 text-white py-3 sm:py-4 rounded-lg transition-colors flex items-center justify-center gap-2 text-base sm:text-lg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-md font-semibold"
                   >
                     <ShoppingCart className="w-5 h-5 sm:w-6 sm:h-6" />
-                    {addingToCart ? "Memproses..." : "Tambah ke Keranjang"}
+                    {addingToCart ? "Memproses..." : currentVariant.stock <= 0 ? "Stok Habis" : "Tambah ke Keranjang"}
                   </button>
                 </div>
               </>
@@ -246,35 +260,7 @@ export function ProductDetail() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8 mb-12">
-          <div className="bg-white p-6 rounded-xl shadow-md flex gap-4">
-            <Package className="w-8 h-8 sm:w-10 sm:h-10 text-accent flex-shrink-0" />
-            <div>
-              <h3 className="text-lg sm:text-xl text-primary mb-2">Kualitas Terjamin</h3>
-              <p className="text-sm sm:text-base text-muted-foreground">
-                Dipilih dan dikemas dengan standar kualitas tinggi
-              </p>
-            </div>
-          </div>
-          <div className="bg-white p-6 rounded-xl shadow-md flex gap-4">
-            <Truck className="w-8 h-8 sm:w-10 sm:h-10 text-accent flex-shrink-0" />
-            <div>
-              <h3 className="text-lg sm:text-xl text-primary mb-2">Pengiriman Cepat</h3>
-              <p className="text-sm sm:text-base text-muted-foreground">
-                Dikirim dalam 1-2 hari kerja untuk area Bogor
-              </p>
-            </div>
-          </div>
-          <div className="bg-white p-6 rounded-xl shadow-md flex gap-4">
-            <ShieldCheck className="w-8 h-8 sm:w-10 sm:h-10 text-accent flex-shrink-0" />
-            <div>
-              <h3 className="text-lg sm:text-xl text-primary mb-2">Sertifikasi Organik</h3>
-              <p className="text-sm sm:text-base text-muted-foreground">
-                Produk tersertifikasi organik resmi
-              </p>
-            </div>
-          </div>
-        </div>
+
 
         <div className="bg-white p-6 sm:p-8 rounded-xl shadow-md">
           <h2 className="text-2xl sm:text-3xl text-primary mb-4">Deskripsi Produk</h2>

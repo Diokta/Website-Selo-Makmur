@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /admin-gapoktan/
+Disallow: /admin-poktan/
+
+Sitemap: https://gapoktan-selomakmur.id/sitemap.xml
