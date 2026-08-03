@@ -25,6 +25,7 @@ export function GapoktanProducts() {
   const [category, setCategory] = useState("");
   const [cultivationMethod, setCultivationMethod] = useState("Organik");
   const [price, setPrice] = useState("");
+  const [gapoktanFee, setGapoktanFee] = useState("0");
   const [stock, setStock] = useState("");
   const [description, setDescription] = useState("");
   const [unit, setUnit] = useState("kg");
@@ -140,6 +141,7 @@ export function GapoktanProducts() {
     setDescription("");
     setCultivationMethod("Organik");
     setPrice("");
+    setGapoktanFee("0");
     setStock("");
     setUnit("kg");
     setHarvestDate("");
@@ -166,6 +168,7 @@ export function GapoktanProducts() {
     setDescription(p.description || "");
     setCultivationMethod(p.cultivation_method || "Organik");
     setPrice(String(p.price));
+    setGapoktanFee(p.gapoktan_fee !== undefined && p.gapoktan_fee !== null ? String(p.gapoktan_fee) : "0");
     setStock(String(p.stock));
     setUnit(p.unit || "kg");
     setHarvestDate(p.harvest_date ? p.harvest_date.substring(0, 10) : "");
@@ -234,6 +237,7 @@ export function GapoktanProducts() {
         description: description || null,
         cultivation_method: cultivationMethod || null,
         price: parseFloat(price) || 0,
+        gapoktan_fee: parseFloat(gapoktanFee) || 0,
         stock: parseInt(stock) || 0,
         unit,
         harvest_date: harvestDate || null,
@@ -246,10 +250,20 @@ export function GapoktanProducts() {
 
       if (editProductId) {
         // Update product
-        const { error } = await supabase
+        let { error } = await supabase
           .from("products")
           .update(productPayload)
           .eq("id", editProductId);
+
+        if (error && (error.message?.includes("gapoktan_fee") || error.code === "PGRST204")) {
+          delete (productPayload as any).gapoktan_fee;
+          const retryRes = await supabase
+            .from("products")
+            .update(productPayload)
+            .eq("id", editProductId);
+          error = retryRes.error;
+        }
+
         if (error) throw error;
 
         // Delete existing variants and features
@@ -258,13 +272,25 @@ export function GapoktanProducts() {
         setSuccessMsg("Produk berhasil diperbarui.");
       } else {
         // Insert product
-        const { data, error } = await supabase
+        let { data, error } = await supabase
           .from("products")
           .insert(productPayload)
           .select()
           .single();
+
+        if (error && (error.message?.includes("gapoktan_fee") || error.code === "PGRST204")) {
+          delete (productPayload as any).gapoktan_fee;
+          const retryRes = await supabase
+            .from("products")
+            .insert(productPayload)
+            .select()
+            .single();
+          data = retryRes.data;
+          error = retryRes.error;
+        }
+
         if (error) throw error;
-        productId = data.id;
+        productId = data?.id;
         setSuccessMsg("Produk baru berhasil ditambahkan.");
       }
 
@@ -595,8 +621,8 @@ export function GapoktanProducts() {
 
             {/* Harga & Stok */}
             <div>
-              <p className="text-sm font-semibold text-muted-foreground mb-3 pb-2 border-b border-border">Harga & Stok (Utama)</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <p className="text-sm font-semibold text-muted-foreground mb-3 pb-2 border-b border-border">Harga, Biaya Admin Gapoktan & Stok (Utama)</p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm mb-2 text-foreground font-medium">Harga Satuan (Rp)</label>
                   <input
@@ -607,6 +633,19 @@ export function GapoktanProducts() {
                     placeholder="15000"
                     className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                   />
+                </div>
+                <div>
+                  <label className="block text-sm mb-2 text-foreground font-medium">Biaya Admin Gapoktan (Rp / Satuan)</label>
+                  <input
+                    type="number"
+                    value={gapoktanFee}
+                    onChange={(e) => setGapoktanFee(e.target.value)}
+                    placeholder="Contoh: 2000"
+                    className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Dipajang khusus laporan keuangan Gapoktan
+                  </p>
                 </div>
                 <div>
                   <label className="block text-sm mb-2 text-foreground font-medium">Jumlah Stok</label>

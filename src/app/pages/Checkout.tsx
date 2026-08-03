@@ -293,7 +293,7 @@ export function Checkout() {
         // Fetch cart items (filtered if selectedIds is provided)
         let query = supabase
           .from("cart_items")
-          .select("*, products(id, name, price, unit, image_url, poktan_id), product_variants(id, size, price)")
+          .select("*, products(id, name, price, unit, image_url, poktan_id, gapoktan_fee), product_variants(id, size, price)")
           .eq("user_id", user.id);
 
         if (selectedIds && selectedIds.length > 0) {
@@ -420,19 +420,39 @@ export function Checkout() {
 
       const createdOrderId = orderResult.id;
 
-      // 2. Insert into order_items
-      const orderItemsToInsert = cartItems.map((item) => ({
-        order_id: createdOrderId,
-        product_id: item.product_id,
-        product_name: `${item.name} (${item.variant})`,
-        quantity: item.quantity,
-        price_per_unit: item.price,
-        subtotal: item.price * item.quantity,
-      }));
+      // 2. Insert into order_items with snapshotted gapoktan_fee
+      const orderItemsToInsert = cartItems.map((item) => {
+        const feePerUnit = item.products?.gapoktan_fee || item.gapoktan_fee || 0;
+        return {
+          order_id: createdOrderId,
+          product_id: item.product_id,
+          product_name: `${item.name} (${item.variant})`,
+          quantity: item.quantity,
+          price_per_unit: item.price,
+          gapoktan_fee_per_unit: feePerUnit,
+          gapoktan_fee_total: feePerUnit * item.quantity,
+          subtotal: item.price * item.quantity,
+        };
+      });
 
-      const { error: itemsError } = await supabase
+      let { error: itemsError } = await supabase
         .from("order_items")
         .insert(orderItemsToInsert);
+
+      if (itemsError && (itemsError.message?.includes("gapoktan_fee") || itemsError.code === "PGRST204")) {
+        const fallbackItems = cartItems.map((item) => ({
+          order_id: createdOrderId,
+          product_id: item.product_id,
+          product_name: `${item.name} (${item.variant})`,
+          quantity: item.quantity,
+          price_per_unit: item.price,
+          subtotal: item.price * item.quantity,
+        }));
+        const retryRes = await supabase
+          .from("order_items")
+          .insert(fallbackItems);
+        itemsError = retryRes.error;
+      }
 
       if (itemsError) throw itemsError;
 

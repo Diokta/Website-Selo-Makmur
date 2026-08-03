@@ -6,7 +6,6 @@ import {
   Info,
   Save,
   Building2,
-  BarChart2,
   Upload,
   Plus,
   Trash2,
@@ -427,7 +426,6 @@ export function GapoktanContent() {
     { id: "organisasi", name: "Struktur Organisasi", icon: Users },
     { id: "rekening", name: "Rekening Bank", icon: CreditCard },
     { id: "hero", name: "Banner / Hero", icon: ImageIcon },
-    { id: "statistik", name: "Statistik", icon: BarChart2 },
     { id: "visi-misi", name: "Visi & Misi", icon: Info },
     { id: "berita", name: "Berita & Pengumuman", icon: FileText },
   ];
@@ -660,8 +658,8 @@ export function GapoktanContent() {
                     </div>
 
                     <div className="flex items-center gap-4">
-                      <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-accent/20 bg-secondary flex-shrink-0 relative">
-                        <img src={member.image} alt={member.name || "Foto Pengurus"} className="w-full h-full object-cover" />
+                      <div className="w-20 h-24 rounded-lg overflow-hidden border-2 border-accent/20 bg-secondary flex-shrink-0 relative flex items-center justify-center p-1">
+                        <img src={member.image} alt={member.name || "Foto Pengurus"} className="h-full w-full object-contain object-center" />
                       </div>
                       <div className="flex-1 space-y-2">
                         <div>
@@ -877,58 +875,7 @@ export function GapoktanContent() {
             </div>
           )}
 
-          {/* ── STATISTIK ── */}
-          {activeTab === "statistik" && (
-            <div className="space-y-6">
-              <p className="text-sm text-muted-foreground font-medium">
-                Ubah data angka statistik utama yang dipajang di halaman Beranda.
-              </p>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div>
-                  <label className="block text-sm mb-2 text-foreground font-semibold">Jumlah Poktan</label>
-                  <input
-                    type="number"
-                    value={contentMap["stats.total_poktan"] || ""}
-                    onChange={(e) => setContentMap({ ...contentMap, "stats.total_poktan": e.target.value })}
-                    className={inputCls}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm mb-2 text-foreground font-semibold">Total Petani</label>
-                  <input
-                    type="number"
-                    value={contentMap["stats.total_farmers"] || ""}
-                    onChange={(e) => setContentMap({ ...contentMap, "stats.total_farmers": e.target.value })}
-                    className={inputCls}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm mb-2 text-foreground font-semibold">Jumlah Produk</label>
-                  <input
-                    type="number"
-                    value={contentMap["stats.total_products"] || ""}
-                    onChange={(e) => setContentMap({ ...contentMap, "stats.total_products": e.target.value })}
-                    className={inputCls}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm mb-2 text-foreground font-semibold">Luas Lahan (Ha)</label>
-                  <input
-                    type="number"
-                    value={contentMap["stats.luas_lahan"] || ""}
-                    onChange={(e) => setContentMap({ ...contentMap, "stats.luas_lahan": e.target.value })}
-                    className={inputCls}
-                  />
-                </div>
-              </div>
-              <button
-                onClick={() => handleSaveAllTabContent(["stats.total_poktan", "stats.total_farmers", "stats.total_products", "stats.luas_lahan"])}
-                className="bg-primary hover:bg-primary/90 text-white px-6 py-2.5 rounded-lg text-sm font-semibold flex items-center gap-2"
-              >
-                <Save className="w-4 h-4" /> Simpan Statistik
-              </button>
-            </div>
-          )}
+
 
           {/* ── VISI & MISI ── */}
           {activeTab === "visi-misi" && (

@@ -84,12 +84,34 @@ export function GapoktanOrders() {
 
       if (orderError) throw orderError;
 
-      // 2. Insert into finance records for reporting
+      // 2. Insert into finance records for reporting using snapshotted gapoktan fee
       const recordYear = new Date(order.ordered_at).getFullYear();
       const recordMonth = new Date(order.ordered_at).getMonth() + 1;
-      const feePct = 5;
-      const feeAmount = order.subtotal * 0.05;
-      const shareAmount = order.subtotal * 0.95;
+
+      // Fetch snapshotted fee from order items
+      const { data: items } = await supabase
+        .from("order_items")
+        .select("gapoktan_fee_total, gapoktan_fee_per_unit, quantity, products(gapoktan_fee)")
+        .eq("order_id", order.id);
+
+      let feeAmount = 0;
+      if (items && items.length > 0) {
+        feeAmount = items.reduce((sum: number, item: any) => {
+          if (item.gapoktan_fee_total !== undefined && item.gapoktan_fee_total !== null && Number(item.gapoktan_fee_total) > 0) {
+            return sum + Number(item.gapoktan_fee_total);
+          }
+          if (item.gapoktan_fee_per_unit) {
+            return sum + (Number(item.gapoktan_fee_per_unit) * (item.quantity || 1));
+          }
+          if (item.products?.gapoktan_fee) {
+            return sum + (Number(item.products.gapoktan_fee) * (item.quantity || 1));
+          }
+          return sum;
+        }, 0);
+      }
+
+      const shareAmount = Math.max(0, order.subtotal - feeAmount);
+      const feePct = order.subtotal > 0 ? Math.round((feeAmount / order.subtotal) * 100) : 0;
 
       const { error: financeError } = await supabase
         .from("finance_records")

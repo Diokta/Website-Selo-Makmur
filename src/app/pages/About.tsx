@@ -182,11 +182,11 @@ export function About() {
                 key={index}
                 className="bg-white rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-shadow"
               >
-                <div className="relative h-48 sm:h-56 overflow-hidden">
+                <div className="relative h-64 sm:h-72 w-full bg-secondary/30 flex items-center justify-center overflow-hidden p-2">
                   <ImageWithFallback
                     src={person.image}
                     alt={person.name}
-                    className="w-full h-full object-cover"
+                    className="h-full w-full object-contain object-center"
                   />
                 </div>
                 <div className="p-5 sm:p-6 text-center">

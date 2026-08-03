@@ -264,7 +264,7 @@ export function ProductDetail() {
 
         <div className="bg-white p-6 sm:p-8 rounded-xl shadow-md">
           <h2 className="text-2xl sm:text-3xl text-primary mb-4">Deskripsi Produk</h2>
-          <p className="text-base sm:text-lg text-muted-foreground leading-relaxed mb-6">
+          <p className="text-base sm:text-lg text-muted-foreground leading-relaxed mb-6 whitespace-pre-line">
             {product.description}
           </p>
           <h3 className="text-xl sm:text-2xl text-primary mb-4">Keunggulan Produk</h3>

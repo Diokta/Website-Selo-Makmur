@@ -57,7 +57,7 @@ export function GapoktanFinance() {
       // 1. Fetch current month's orders (filtered by poktan if selected)
       let query = supabase
         .from("orders")
-        .select("*, kelompok_tani(id, nama)")
+        .select("*, kelompok_tani(id, nama), order_items(gapoktan_fee_total, gapoktan_fee_per_unit, quantity)")
         .eq("payment_status", "Lunas")
         .gte("ordered_at", startOfMonth)
         .lte("ordered_at", endOfMonth);
@@ -75,15 +75,27 @@ export function GapoktanFinance() {
 
       monthRecords?.forEach((r) => {
         totalRevenue += r.subtotal;
-        gapoktanFee += r.subtotal * 0.05;
-        poktanShare += r.subtotal * 0.95;
+        let rFee = 0;
+        if (r.order_items && r.order_items.length > 0) {
+          rFee = r.order_items.reduce((sum: number, item: any) => {
+            if (item.gapoktan_fee_total !== undefined && item.gapoktan_fee_total !== null && Number(item.gapoktan_fee_total) > 0) {
+              return sum + Number(item.gapoktan_fee_total);
+            }
+            if (item.gapoktan_fee_per_unit) {
+              return sum + (Number(item.gapoktan_fee_per_unit) * (item.quantity || 1));
+            }
+            return sum;
+          }, 0);
+        }
+        gapoktanFee += rFee;
+        poktanShare += Math.max(0, r.subtotal - rFee);
       });
 
       setSummary({
         totalRevenue,
         gapoktanFee,
         poktanShare,
-        feePercentage: 5,
+        feePercentage: 0,
       });
 
       // 2. Fetch full year's data for the trend chart (monthly aggregate)
@@ -92,7 +104,7 @@ export function GapoktanFinance() {
 
       let yearQuery = supabase
         .from("orders")
-        .select("*")
+        .select("*, order_items(gapoktan_fee_total, gapoktan_fee_per_unit, quantity)")
         .eq("payment_status", "Lunas")
         .gte("ordered_at", startOfYear)
         .lte("ordered_at", endOfYear);
@@ -113,8 +125,20 @@ export function GapoktanFinance() {
           const ordDate = new Date(r.ordered_at);
           if (ordDate.getMonth() === idx) {
             monthTotal += r.subtotal;
-            monthFee += r.subtotal * 0.05;
-            monthShare += r.subtotal * 0.95;
+            let rFee = 0;
+            if (r.order_items && r.order_items.length > 0) {
+              rFee = r.order_items.reduce((sum: number, item: any) => {
+                if (item.gapoktan_fee_total !== undefined && item.gapoktan_fee_total !== null && Number(item.gapoktan_fee_total) > 0) {
+                  return sum + Number(item.gapoktan_fee_total);
+                }
+                if (item.gapoktan_fee_per_unit) {
+                  return sum + (Number(item.gapoktan_fee_per_unit) * (item.quantity || 1));
+                }
+                return sum;
+              }, 0);
+            }
+            monthFee += rFee;
+            monthShare += Math.max(0, r.subtotal - rFee);
           }
         });
 
@@ -129,16 +153,29 @@ export function GapoktanFinance() {
       setMonthlyRevenue(monthlyAgg);
 
       // 3. Distribution per Poktan for current month (pie chart and table)
-      const poktanMap: Record<string, { name: string; revenue: number }> = {};
+      const poktanMap: Record<string, { name: string; revenue: number; fee: number }> = {};
       let totalMonthlyRevenue = 0;
 
       monthRecords?.forEach((r) => {
         if (r.kelompok_tani) {
           const name = r.kelompok_tani.nama;
           if (!poktanMap[name]) {
-            poktanMap[name] = { name, revenue: 0 };
+            poktanMap[name] = { name, revenue: 0, fee: 0 };
           }
           poktanMap[name].revenue += r.subtotal;
+          let rFee = 0;
+          if (r.order_items && r.order_items.length > 0) {
+            rFee = r.order_items.reduce((sum: number, item: any) => {
+              if (item.gapoktan_fee_total !== undefined && item.gapoktan_fee_total !== null && Number(item.gapoktan_fee_total) > 0) {
+                return sum + Number(item.gapoktan_fee_total);
+              }
+              if (item.gapoktan_fee_per_unit) {
+                return sum + (Number(item.gapoktan_fee_per_unit) * (item.quantity || 1));
+              }
+              return sum;
+            }, 0);
+          }
+          poktanMap[name].fee += rFee;
           totalMonthlyRevenue += r.subtotal;
         }
       });
@@ -150,12 +187,13 @@ export function GapoktanFinance() {
           name: p.name,
           value: totalMonthlyRevenue > 0 ? Math.round((p.revenue / totalMonthlyRevenue) * 100) : 0,
           revenue: p.revenue,
+          fee: p.fee,
           color: colors[idx % colors.length],
         }))
         .sort((a, b) => b.revenue - a.revenue);
 
       setPoktanRevenue(dist.length > 0 ? dist : [
-        { id: "empty", name: "Belum Ada Data", value: 100, revenue: 0, color: "#d1d5db" }
+        { id: "empty", name: "Belum Ada Data", value: 100, revenue: 0, fee: 0, color: "#d1d5db" }
       ]);
     } catch (err) {
       console.error("Error loading financial reports:", err);
@@ -250,7 +288,7 @@ export function GapoktanFinance() {
           <p className="text-xs text-accent font-medium">{formatMonthName(selectedPeriod)}</p>
         </div>
         <div className="bg-white rounded-xl p-6 shadow-md border border-border">
-          <p className="text-sm font-semibold text-muted-foreground mb-2">Biaya Admin Gapoktan ({summary.feePercentage}%)</p>
+          <p className="text-sm font-semibold text-muted-foreground mb-2">Biaya Admin Gapoktan</p>
           <p className="text-3xl font-bold" style={{ color: "var(--accent)" }}>
             Rp {summary.gapoktanFee.toLocaleString("id-ID")}
           </p>
@@ -335,14 +373,14 @@ export function GapoktanFinance() {
               <tr className="border-b border-border">
                 <th className="px-6 py-4 text-left text-sm text-white font-semibold">Poktan</th>
                 <th className="px-6 py-4 text-left text-sm text-white font-semibold">Total Penjualan</th>
-                <th className="px-6 py-4 text-left text-sm text-white font-semibold">Fee Gapoktan (5%)</th>
+                <th className="px-6 py-4 text-left text-sm text-white font-semibold">Fee Admin Gapoktan</th>
                 <th className="px-6 py-4 text-left text-sm text-white font-semibold">Bagian Poktan</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {poktanRevenue.filter(p => p.name !== "Belum Ada Data").map((poktan, index) => {
-                const fee = poktan.revenue * 0.05;
-                const share = poktan.revenue * 0.95;
+                const fee = poktan.fee || 0;
+                const share = Math.max(0, poktan.revenue - fee);
                 return (
                   <tr
                     key={index}

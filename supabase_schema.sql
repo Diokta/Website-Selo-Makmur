@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS public.products (
     description TEXT,
     cultivation_method TEXT,
     price NUMERIC DEFAULT 0 NOT NULL,
+    gapoktan_fee NUMERIC DEFAULT 0 NOT NULL,
     unit TEXT,
     stock INTEGER DEFAULT 0 NOT NULL,
     harvest_date DATE,
@@ -105,6 +106,8 @@ CREATE TABLE IF NOT EXISTS public.order_items (
     product_name TEXT NOT NULL,
     quantity INTEGER DEFAULT 1 NOT NULL,
     price_per_unit NUMERIC DEFAULT 0 NOT NULL,
+    gapoktan_fee_per_unit NUMERIC DEFAULT 0 NOT NULL,
+    gapoktan_fee_total NUMERIC DEFAULT 0 NOT NULL,
     subtotal NUMERIC DEFAULT 0 NOT NULL
 );
 
