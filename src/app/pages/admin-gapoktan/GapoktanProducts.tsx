@@ -40,8 +40,24 @@ export function GapoktanProducts() {
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [deleteTargetName, setDeleteTargetName] = useState("");
 
-  const categories = ["Beras", "Sayuran", "Palawija", "Bumbu", "Buah", "Bibit", "Pupuk Organik"];
-  const methods = ["Organik", "Semi-Organik", "Konvensional"];
+  // Custom Item Mode States
+  const [isCustomCategory, setIsCustomCategory] = useState(false);
+  const [isCustomMethod, setIsCustomMethod] = useState(false);
+  const [isCustomUnit, setIsCustomUnit] = useState(false);
+
+  const defaultCategories = ["Beras", "Sayuran", "Palawija", "Bumbu", "Buah", "Bibit", "Pupuk Organik"];
+  const defaultMethods = ["Organik", "Semi-Organik", "Konvensional"];
+  const defaultUnits = ["kg", "ikat", "paket", "polybag", "karung", "buah"];
+
+  const categories = Array.from(
+    new Set([...defaultCategories, ...products.map((p) => p.category).filter(Boolean)])
+  );
+  const methods = Array.from(
+    new Set([...defaultMethods, ...products.map((p) => p.cultivation_method).filter(Boolean)])
+  );
+  const units = Array.from(
+    new Set([...defaultUnits, ...products.map((p) => p.unit).filter(Boolean)])
+  );
 
   useEffect(() => {
     fetchData();
@@ -135,6 +151,9 @@ export function GapoktanProducts() {
     setEditProductId(null);
     setShowForm(false);
     setErrorMsg("");
+    setIsCustomCategory(false);
+    setIsCustomMethod(false);
+    setIsCustomUnit(false);
   };
 
   const handleEdit = (p: any) => {
@@ -153,6 +172,9 @@ export function GapoktanProducts() {
     setBadge(p.badge || "");
     setImageUrl(p.image_url || "");
     setStatus(p.status || "Aktif");
+    setIsCustomCategory(false);
+    setIsCustomMethod(false);
+    setIsCustomUnit(false);
 
     if (p.product_variants && p.product_variants.length > 0) {
       setVariants(p.product_variants.map((v: any) => ({
@@ -391,30 +413,92 @@ export function GapoktanProducts() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm mb-2 text-foreground font-medium">Kategori</label>
-                  <select
-                    required
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value)}
-                    className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                  >
-                    <option value="">Pilih Kategori</option>
-                    {categories.map((cat) => (
-                      <option key={cat} value={cat}>{cat}</option>
-                    ))}
-                  </select>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm text-foreground font-medium">Kategori</label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsCustomCategory(!isCustomCategory);
+                        setCategory("");
+                      }}
+                      className="text-xs text-accent hover:underline font-semibold cursor-pointer"
+                    >
+                      {isCustomCategory ? "← Pilih dari daftar" : "+ Tambah Kategori Baru"}
+                    </button>
+                  </div>
+                  {isCustomCategory ? (
+                    <input
+                      type="text"
+                      required
+                      value={category}
+                      onChange={(e) => setCategory(e.target.value)}
+                      placeholder="Ketik nama kategori baru..."
+                      className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                  ) : (
+                    <select
+                      required
+                      value={category}
+                      onChange={(e) => {
+                        if (e.target.value === "__NEW__") {
+                          setIsCustomCategory(true);
+                          setCategory("");
+                        } else {
+                          setCategory(e.target.value);
+                        }
+                      }}
+                      className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    >
+                      <option value="">Pilih Kategori</option>
+                      {categories.map((cat) => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                      <option value="__NEW__" className="font-bold text-accent">+ Tambah Kategori Baru...</option>
+                    </select>
+                  )}
                 </div>
                 <div>
-                  <label className="block text-sm mb-2 text-foreground font-medium">Metode Budidaya</label>
-                  <select
-                    value={cultivationMethod}
-                    onChange={(e) => setCultivationMethod(e.target.value)}
-                    className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                  >
-                    {methods.map((method) => (
-                      <option key={method} value={method}>{method}</option>
-                    ))}
-                  </select>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm text-foreground font-medium">Metode Budidaya</label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsCustomMethod(!isCustomMethod);
+                        setCultivationMethod(isCustomMethod ? "Organik" : "");
+                      }}
+                      className="text-xs text-accent hover:underline font-semibold cursor-pointer"
+                    >
+                      {isCustomMethod ? "← Pilih dari daftar" : "+ Tambah Metode Baru"}
+                    </button>
+                  </div>
+                  {isCustomMethod ? (
+                    <input
+                      type="text"
+                      required
+                      value={cultivationMethod}
+                      onChange={(e) => setCultivationMethod(e.target.value)}
+                      placeholder="Ketik metode budidaya baru (misal: Hidroponik)..."
+                      className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                  ) : (
+                    <select
+                      value={cultivationMethod}
+                      onChange={(e) => {
+                        if (e.target.value === "__NEW__") {
+                          setIsCustomMethod(true);
+                          setCultivationMethod("");
+                        } else {
+                          setCultivationMethod(e.target.value);
+                        }
+                      }}
+                      className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    >
+                      {methods.map((method) => (
+                        <option key={method} value={method}>{method}</option>
+                      ))}
+                      <option value="__NEW__" className="font-bold text-accent">+ Tambah Metode Baru...</option>
+                    </select>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm mb-2 text-foreground font-medium">Tanggal Panen</label>
@@ -439,19 +523,47 @@ export function GapoktanProducts() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm mb-2 text-foreground font-medium">Satuan Dasar</label>
-                  <select
-                    value={unit}
-                    onChange={(e) => setUnit(e.target.value)}
-                    className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                  >
-                    <option>kg</option>
-                    <option>ikat</option>
-                    <option>paket</option>
-                    <option>polybag</option>
-                    <option>karung</option>
-                    <option>buah</option>
-                  </select>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm text-foreground font-medium">Satuan Dasar</label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsCustomUnit(!isCustomUnit);
+                        setUnit(isCustomUnit ? "kg" : "");
+                      }}
+                      className="text-xs text-accent hover:underline font-semibold cursor-pointer"
+                    >
+                      {isCustomUnit ? "← Pilih dari daftar" : "+ Tambah Satuan Baru"}
+                    </button>
+                  </div>
+                  {isCustomUnit ? (
+                    <input
+                      type="text"
+                      required
+                      value={unit}
+                      onChange={(e) => setUnit(e.target.value)}
+                      placeholder="Ketik satuan dasar baru (misal: liter, botol, dll)..."
+                      className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                  ) : (
+                    <select
+                      value={unit}
+                      onChange={(e) => {
+                        if (e.target.value === "__NEW__") {
+                          setIsCustomUnit(true);
+                          setUnit("");
+                        } else {
+                          setUnit(e.target.value);
+                        }
+                      }}
+                      className="w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    >
+                      {units.map((u) => (
+                        <option key={u} value={u}>{u}</option>
+                      ))}
+                      <option value="__NEW__" className="font-bold text-accent">+ Tambah Satuan Baru...</option>
+                    </select>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm mb-2 text-foreground font-medium">Status Publikasi</label>

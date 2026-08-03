@@ -27,15 +27,10 @@ export function Shop() {
   const [cartErrorMsg, setCartErrorMsg] = useState("");
   const [authAlertOpen, setAuthAlertOpen] = useState(false);
 
+  const defaultCategories = ["Beras", "Sayuran", "Buah", "Palawija", "Bumbu", "Bibit", "Pupuk Organik"];
   const categories = [
     "Semua",
-    "Beras",
-    "Sayuran",
-    "Buah",
-    "Palawija",
-    "Bumbu",
-    "Bibit",
-    "Pupuk Organik",
+    ...Array.from(new Set([...defaultCategories, ...products.map((p) => p.category).filter(Boolean)]))
   ];
 
   useEffect(() => {

@@ -28,6 +28,52 @@ Membangun kemitraan strategis dengan berbagai pihak
 Memberdayakan petani melalui pelatihan dan pendampingan
 Menjaga kelestarian lingkungan dan pertanian berkelanjutan`;
 
+interface OrgMember {
+  id: string;
+  name: string;
+  position: string;
+  image: string;
+}
+
+const DEFAULT_LEADERSHIP: OrgMember[] = [
+  {
+    id: "1",
+    name: "Bapak Sutrisno",
+    position: "Ketua Gapoktan",
+    image: "https://images.unsplash.com/photo-1602511706963-02ecf61637b3?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHw0fHxJbmRvbmVzaWFuJTIwZmFybWVycyUyMHdvcmtpbmclMjBpbiUyMHJpY2UlMjBmaWVsZHxlbnwxfHx8fDE3ODA0NjExNzh8MA&ixlib=rb-4.1.0&q=80&w=1080",
+  },
+  {
+    id: "2",
+    name: "Ibu Sumiati",
+    position: "Wakil Ketua",
+    image: "https://images.unsplash.com/photo-1676281945404-4e1cb6eaf25e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwyfHxJbmRvbmVzaWFuJTIwZmFybWVycyUyMHdvcmtpbmclMjBpbiUyMHJpY2UlMjBmaWVsZHxlbnwxfHx8fDE3ODA0NjExNzh8MA&ixlib=rb-4.1.0&q=80&w=1080",
+  },
+  {
+    id: "3",
+    name: "Bapak Darmawan",
+    position: "Sekretaris",
+    image: "https://images.unsplash.com/photo-1673746759526-375ad76cb399?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxJbmRvbmVzaWFuJTIwZmFybWVycyUyMHdvcmtpbmclMjBpbiUyMHJpY2UlMjBmaWVsZHxlbnwxfHx8fDE3ODA0NjExNzh8MA&ixlib=rb-4.1.0&q=80&w=1080",
+  },
+  {
+    id: "4",
+    name: "Ibu Widya Sari",
+    position: "Bendahara",
+    image: "https://images.unsplash.com/photo-1673746759528-e48f0dce5896?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwzfHxJbmRvbmVzaWFuJTIwZmFybWVycyUyMHdvcmtpbmclMjBpbiUyMHJpY2UlMjBmaWVsZHxlbnwxfHx8fDE3ODA0NjExNzh8MA&ixlib=rb-4.1.0&q=80&w=1080",
+  },
+  {
+    id: "5",
+    name: "Bapak Hendra",
+    position: "Kepala Seksi Usaha",
+    image: "https://images.unsplash.com/photo-1676281945191-4c0ed1a1784d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHw1fHxJbmRvbmVzaWFuJTIwZmFybWVycyUyMHdvcmtpbmclMjBpbiUyMHJpY2UlMjBmaWVsZHxlbnwxfHx8fDE3ODA0NjExNzh8MA&ixlib=rb-4.1.0&q=80&w=1080",
+  },
+  {
+    id: "6",
+    name: "Ibu Ratna",
+    position: "Kepala Seksi Produksi",
+    image: "https://images.unsplash.com/photo-1676281945404-4e1cb6eaf25e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwyfHxJbmRvbmVzaWFuJTIwZmFybWVycyUyMHdvcmtpbmclMjBpbiUyMHJpY2UlMjBmaWVsZHxlbnwxfHx8fDE3ODA0NjExNzh8MA&ixlib=rb-4.1.0&q=80&w=1080",
+  },
+];
+
 export function GapoktanContent() {
   const { refreshContent } = useWebsiteContent();
   const [activeTab, setActiveTab] = useState("identitas");
@@ -47,6 +93,8 @@ export function GapoktanContent() {
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadingHero, setUploadingHero] = useState(false);
+  const [orgMembers, setOrgMembers] = useState<OrgMember[]>(DEFAULT_LEADERSHIP);
+  const [uploadingOrgIndex, setUploadingOrgIndex] = useState<number | null>(null);
 
   const handleNewsImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -141,6 +189,41 @@ export function GapoktanContent() {
     }
   };
 
+  const handleOrgPhotoUpload = async (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingOrgIndex(index);
+    try {
+      const fileExt = file.name.split(".").pop();
+      const fileName = `org-${Date.now()}-${index}.${fileExt}`;
+      const filePath = `organization/${fileName}`;
+      const { error: uploadError } = await supabase.storage
+        .from("product-images")
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage
+        .from("product-images")
+        .getPublicUrl(filePath);
+
+      setOrgMembers((prev) =>
+        prev.map((m, i) => (i === index ? { ...m, image: data.publicUrl } : m))
+      );
+    } catch (err) {
+      console.warn("Storage upload failed, falling back to base64 encoding:", err);
+      const reader = new FileReader();
+      reader.onload = () => {
+        setOrgMembers((prev) =>
+          prev.map((m, i) => (i === index ? { ...m, image: reader.result as string } : m))
+        );
+      };
+      reader.readAsDataURL(file);
+    } finally {
+      setUploadingOrgIndex(null);
+    }
+  };
+
   useEffect(() => {
     fetchContentAndNews();
   }, []);
@@ -163,7 +246,16 @@ export function GapoktanContent() {
         if (!map["payment.bank_name"]) map["payment.bank_name"] = "Bank Mandiri / BRI";
         if (!map["payment.bank_account"]) map["payment.bank_account"] = "137-00-1234567-8";
         if (!map["payment.account_holder"]) map["payment.account_holder"] = "Gapoktan Selo Makmur";
-        if (!map["payment.bank_info"]) map["payment.bank_info"] = "Atau via Bank BRI: 0002-01-000123-30-0 a.n. Gapoktan Selo Makmur";
+        if (map["structure.organization"]) {
+          try {
+            const parsed = JSON.parse(map["structure.organization"]);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setOrgMembers(parsed);
+            }
+          } catch (e) {
+            console.warn("Failed to parse structure.organization JSON:", e);
+          }
+        }
         setContentMap(map);
       } else {
         setContentMap({
@@ -332,6 +424,7 @@ export function GapoktanContent() {
 
   const tabs = [
     { id: "identitas", name: "Identitas", icon: Building2 },
+    { id: "organisasi", name: "Struktur Organisasi", icon: Users },
     { id: "rekening", name: "Rekening Bank", icon: CreditCard },
     { id: "hero", name: "Banner / Hero", icon: ImageIcon },
     { id: "statistik", name: "Statistik", icon: BarChart2 },
@@ -515,6 +608,137 @@ export function GapoktanContent() {
               >
                 <Save className="w-4 h-4" /> Simpan Identitas
               </button>
+            </div>
+          )}
+
+          {/* ── STRUKTUR ORGANISASI ── */}
+          {activeTab === "organisasi" && (
+            <div className="space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-primary">Struktur Organisasi / Pengurus</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Kelola nama, jabatan, dan foto jajaran pengurus Gapoktan yang tampil di halaman Tentang Kami.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setOrgMembers([
+                      ...orgMembers,
+                      {
+                        id: String(Date.now()),
+                        name: "",
+                        position: "",
+                        image: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800",
+                      },
+                    ])
+                  }
+                  className="flex items-center gap-2 bg-accent hover:bg-accent/90 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors cursor-pointer self-start sm:self-auto shadow-sm"
+                >
+                  <Plus className="w-4 h-4" /> Tambah Pengurus
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {orgMembers.map((member, index) => (
+                  <div
+                    key={member.id || index}
+                    className="bg-white p-5 rounded-xl border border-border shadow-sm space-y-4 relative"
+                  >
+                    <div className="flex items-center justify-between border-b border-border pb-2">
+                      <span className="text-xs font-bold text-accent uppercase tracking-wider">
+                        Pengurus #{index + 1}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setOrgMembers(orgMembers.filter((_, i) => i !== index))}
+                        className="text-destructive hover:text-destructive/80 text-xs font-semibold flex items-center gap-1 cursor-pointer"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" /> Hapus
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-4">
+                      <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-accent/20 bg-secondary flex-shrink-0 relative">
+                        <img src={member.image} alt={member.name || "Foto Pengurus"} className="w-full h-full object-cover" />
+                      </div>
+                      <div className="flex-1 space-y-2">
+                        <div>
+                          <label className="block text-xs font-semibold text-foreground mb-1">Nama Pengurus</label>
+                          <input
+                            type="text"
+                            value={member.name}
+                            onChange={(e) =>
+                              setOrgMembers(
+                                orgMembers.map((m, i) => (i === index ? { ...m, name: e.target.value } : m))
+                              )
+                            }
+                            placeholder="Contoh: Bapak Sutrisno"
+                            className={inputCls}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-foreground mb-1">Jabatan</label>
+                          <input
+                            type="text"
+                            value={member.position}
+                            onChange={(e) =>
+                              setOrgMembers(
+                                orgMembers.map((m, i) => (i === index ? { ...m, position: e.target.value } : m))
+                              )
+                            }
+                            placeholder="Contoh: Ketua Gapoktan / Sekretaris"
+                            className={inputCls}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end pt-2 border-t border-secondary/10">
+                      <div className="sm:col-span-2">
+                        <label className="block text-xs font-semibold text-foreground mb-1">URL Foto Pengurus</label>
+                        <input
+                          type="text"
+                          value={member.image}
+                          onChange={(e) =>
+                            setOrgMembers(
+                              orgMembers.map((m, i) => (i === index ? { ...m, image: e.target.value } : m))
+                            )
+                          }
+                          placeholder="https://..."
+                          className={inputCls}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-foreground mb-1">Upload Foto</label>
+                        <label className="flex items-center justify-center gap-1.5 border border-dashed border-border rounded-lg p-2.5 bg-secondary/20 hover:bg-secondary/40 cursor-pointer transition-colors text-xs font-medium">
+                          <Upload className="w-3.5 h-3.5 text-muted-foreground" />
+                          <span>{uploadingOrgIndex === index ? "Uploading..." : "Pilih File"}</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => handleOrgPhotoUpload(index, e)}
+                            className="hidden"
+                            disabled={uploadingOrgIndex === index}
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="pt-4 border-t border-border flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => handleSaveValue("structure.organization", JSON.stringify(orgMembers))}
+                  disabled={saving}
+                  className="bg-primary hover:bg-primary/90 text-white px-6 py-2.5 rounded-lg text-sm font-semibold flex items-center gap-2 cursor-pointer shadow-md"
+                >
+                  <Save className="w-4 h-4" /> {saving ? "Menyimpan..." : "Simpan Struktur Organisasi"}
+                </button>
+              </div>
             </div>
           )}
 

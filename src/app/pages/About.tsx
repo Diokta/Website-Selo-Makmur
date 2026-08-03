@@ -12,7 +12,8 @@ export function About() {
   const misiText = getContent("misi", "Meningkatkan kualitas produksi pertanian melalui teknologi modern\nMembangun kemitraan strategis dengan berbagai pihak\nMemberdayakan petani melalui pelatihan dan pendampingan\nMenjaga kelestarian lingkungan dan pertanian berkelanjutan");
   const misiList = misiText.split("\n").map(item => item.replace(/^[•\-\*\s]+/, "").trim()).filter(line => line !== "");
 
-  const leadership = [
+  const rawOrg = getContent("structure.organization");
+  let leadership = [
     {
       name: "Bapak Sutrisno",
       position: "Ketua Gapoktan",
@@ -44,6 +45,17 @@ export function About() {
       image: "https://images.unsplash.com/photo-1676281945404-4e1cb6eaf25e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwyfHxJbmRvbmVzaWFuJTIwZmFybWVycyUyMHdvcmtpbmclMjBpbiUyMHJpY2UlMjBmaWVsZHxlbnwxfHx8fDE3ODA0NjExNzh8MA&ixlib=rb-4.1.0&q=80&w=1080",
     },
   ];
+
+  if (rawOrg) {
+    try {
+      const parsed = JSON.parse(rawOrg);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        leadership = parsed;
+      }
+    } catch (e) {
+      console.warn("Failed to parse structure.organization JSON:", e);
+    }
+  }
 
   const [poktan, setPoktan] = useState<any[]>([]);
   const [assets, setAssets] = useState<any[]>([]);
