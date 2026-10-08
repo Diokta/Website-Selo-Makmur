@@ -19,3 +19,7 @@ pnpm-debug.log*
 # System Files
 .DS_Store
 Thumbs.db
+
+# Supabase CLI
+supabase/.temp/
+
