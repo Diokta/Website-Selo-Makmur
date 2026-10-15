@@ -6,7 +6,7 @@ import {
   type ReactNode,
 } from "react";
 import type { User, Session } from "@supabase/supabase-js";
-import { supabase } from "../lib/supabase";
+import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from "../lib/supabase";
 import type { UserRole, UserRow } from "../types/database";
 
 // ── Types ─────────────────────────────────────────────────────
@@ -276,8 +276,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     type?: "verify" | "reset";
   }): Promise<{ error: string | null }> => {
     try {
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
-      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+      const supabaseUrl = SUPABASE_URL;
+      const supabaseKey = SUPABASE_ANON_KEY;
       const res = await fetch(
         `${supabaseUrl}/functions/v1/send-verification-email`,
         {
