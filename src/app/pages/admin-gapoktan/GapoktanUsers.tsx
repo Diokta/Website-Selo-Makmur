@@ -8,7 +8,7 @@ const inputCls =
   "w-full px-4 py-3 bg-input-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm";
 
 const emptyForm = { nama: "", ketua: "", dusun: "", jumlah_anggota: "", luas_lahan_ha: "", komoditas_utama: "", tahun_bergabung: "", kontak: "" };
-const emptyUserForm = { name: "", email: "", phone: "", address: "", role: "user" };
+const emptyUserForm = { name: "", email: "", phone: "", role: "user" };
 
 export function GapoktanUsers() {
   const { user } = useAuth();
@@ -169,7 +169,36 @@ export function GapoktanUsers() {
         .order("name", { ascending: true });
 
       if (error) throw error;
-      if (data) setUsersList(data);
+      if (data) {
+        const { data: addrData } = await supabase
+          .from("user_addresses")
+          .select("user_id, address, kelurahan, kecamatan, kabupaten, provinsi, postal_code, is_default")
+          .order("is_default", { ascending: false });
+
+        const addrMap = new Map<string, string>();
+        if (addrData) {
+          for (const a of addrData) {
+            if (!addrMap.has(a.user_id)) {
+              const parts = [
+                a.address,
+                a.kelurahan ? `Kel. ${a.kelurahan}` : "",
+                a.kecamatan ? `Kec. ${a.kecamatan}` : "",
+                a.kabupaten,
+                a.provinsi ? `Prov. ${a.provinsi}` : "",
+                a.postal_code,
+              ].filter(Boolean);
+              addrMap.set(a.user_id, parts.join(", "));
+            }
+          }
+        }
+
+        setUsersList(
+          data.map((u: any) => ({
+            ...u,
+            address: u.address || addrMap.get(u.id) || "",
+          }))
+        );
+      }
     } catch (err: any) {
       console.error("Error fetching users:", err);
       setErrorMsg(err.message || "Gagal memuat data akun pengguna.");
@@ -184,7 +213,6 @@ export function GapoktanUsers() {
       name: u.name || "",
       email: u.email || "",
       phone: u.phone || "",
-      address: u.address || "",
       role: u.role || "user",
     });
     setErrorMsg("");
@@ -204,7 +232,6 @@ export function GapoktanUsers() {
           .update({
             name: userForm.name,
             phone: userForm.phone || null,
-            address: userForm.address || null,
             role: userForm.role,
             updated_at: new Date().toISOString(),
           })
@@ -669,16 +696,6 @@ export function GapoktanUsers() {
                       <option value="user">User / Pembeli</option>
                       <option value="super_admin">Super Admin</option>
                     </select>
-                  </div>
-                  <div className="sm:col-span-2">
-                    <label className="block text-sm mb-2 text-foreground font-medium">Alamat Lengkap</label>
-                    <textarea
-                      rows={3}
-                      placeholder="Alamat lengkap..."
-                      value={userForm.address}
-                      onChange={(e) => setUserForm({ ...userForm, address: e.target.value })}
-                      className={`${inputCls} h-auto`}
-                    />
                   </div>
                 </div>
                 <div className="flex gap-3 pt-2">
